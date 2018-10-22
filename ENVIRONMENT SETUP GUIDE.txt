@@ -1,0 +1,118 @@
+#####################################
+Install guide for the CPE 656 project
+#####################################
+
+
+**REMEMBER, WHEN DEALING WITH PATHS, Windows folder delimeters are "\", and Linux-like systems use "/".  Sub them out when necessary.
+
+--------------------------------------------------
+System requirements and runtime installation guide
+--------------------------------------------------
+
+System requirements:
+  - A compatible version of Python 3
+  - Windows 10 64-bit 
+  - Ubuntu-based Linux distribution compatible with 16.04 or later
+  - If the GPU version of Tensor Flow was installed, CUDA version 9.0 is required.  This will often mean downgrading the NVIDIA drivers
+    to the appropriate version
+
+
+1.  Use PIP to install the TensorFlow package here:  https://www.tensorflow.org/install/pip
+    Most developers working on this project opted to install Tensor Flow to the system python version, not a virtual environment.
+
+2.  To verify the TensorFlow package was installed correctly, attempt to run the following command:
+
+    python3 -c "import tensorflow as tf; print(tf.__version__)
+
+---------------------------------------------------
+Tensor Flow Object Detection API installation guide
+---------------------------------------------------
+The following directions are derived from the following install guide:
+https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/installation.md
+
+1.  Clone or download the following git repository:
+    https://github.com/tensorflow/models/
+
+2.  Install the following packages to the same version of Python Tensor Flow was installed to using the following commands:
+
+    pip install --user Cython
+    pip install --user contextlib2
+    pip install --user pillow
+    pip install --user lxml
+    pip install --user jupyter
+    pip install --user matplotlib
+
+3.  Download the protoc compiler here, and make sure the path to the executable is known.  Use the 3.5.X version.
+    https://github.com/protocolbuffers/protobuf/releases/tag/v3.5.1
+
+4.  This is the part that sucks for Windows:  recurisve file identification is broken in this version of protoc.
+    Attempting to wild-card the *.proto will *probably* not work.
+    In this case, each *.proto file in models/research/object_detection/protos will need to be "compiled" with protoc individually.
+
+    From the models/research/directory, First, try to recursively find all *.protos and run the "compiler"
+    command on them:
+
+    [path to protoc_executable] object_detection/protos/*.proto --python_out=.
+
+    If that doesn't work, from the models/research/object_detection/protos directory, run the following commands:
+
+    [path to protoc_executable] anchor_generator.proto --python_out=.
+    [path to protoc_executable] argmax_matcher.proto --python_out=.
+    [path to protoc_executable] bipartite_matcher.proto --python_out=.
+    [path to protoc_executable] box_coder.proto --python_out=.
+    [path to protoc_executable] box_predictor.proto --python_out=.
+    [path to protoc_executable] eval.proto --python_out=.
+    [path to protoc_executable] faster_rcnn.proto --python_out=.
+    [path to protoc_executable] faster_rcnn_box_coder.proto --python_out=.
+    [path to protoc_executable] graph_rewriter.proto --python_out=.
+    [path to protoc_executable] grid_anchor_generator.proto --python_out=.
+    [path to protoc_executable] hyperparams.proto --python_out=.
+    [path to protoc_executable] image_resizer.proto --python_out=.
+    [path to protoc_executable] input_reader.proto --python_out=.
+    [path to protoc_executable] keypoint_box_coder.proto --python_out=.
+    [path to protoc_executable] losses.proto --python_out=.
+    [path to protoc_executable] matcher.proto --python_out=.
+    [path to protoc_executable] mean_stddev_box_coder.proto --python_out=.
+    [path to protoc_executable] model.proto --python_out=.
+    [path to protoc_executable] multiscale_anchor_generator.proto --python_out=.
+    [path to protoc_executable] optimizer.proto --python_out=.
+    [path to protoc_executable] pipeline.proto --python_out=.
+    [path to protoc_executable] post_processing.proto --python_out=.
+    [path to protoc_executable] preprocessor.proto --python_out=.
+    [path to protoc_executable] region_similarity_calculator.proto --python_out=.
+    [path to protoc_executable] square_box_coder.proto --python_out=.
+    [path to protoc_executable] ssd.proto --python_out=.
+    [path to protoc_executable] ssd_anchor_generator.proto --python_out=.
+    [path to protoc_executable] string_int_label_map.proto --python_out=.
+    [path to protoc_executable] train.proto --python_out=.
+
+5.  Add the full directory paths to the OS system environment variables:
+    [fully qualified path here]/models/research
+    [fully qualified path here]/models/research/slim
+
+    In Ubuntu 16.04, this is done by putting the following line in the /etc/environment variable:
+
+    export PYTHONPATH=$PYTHONPATH:[fully qualified path here]/models/research:[fully qualified path here]/models/research/slim
+
+    In Windows, using the following directions to perform the same thing:
+    https://java.com/en/download/help/path.xml
+
+    PYTHONPATH should be the environment variable name, and the value should be semi-colon delimited, like this:
+
+    [fully qualified path here]/models/research;[fully qualified path here]/models/research/slim
+
+
+6.  Restart your computer, and attempt to run following command:
+
+    python [fully qualified path here]/models/research/object_detection/builders/model_builder_test.py
+
+   
+---------------------------------------------------
+Exteneral dependencies installation guide
+---------------------------------------------------
+
+1.  Install OpenCV library for Python 3 using the following command:
+
+    pip install opencv-python
+    
+     
