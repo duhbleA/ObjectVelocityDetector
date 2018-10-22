@@ -1,8 +1,8 @@
 #include <Python.h>
 #include <iostream>
-#include "/home/team0/.local/lib/python3.5/site-packages/numpy/core/include/numpy/arrayobject.h"
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include "/home/team0/.local/lib/python3.5/site-packages/numpy/core/include/numpy/ndarrayobject.h"
+#include <opencv2/imgproc/imgproc.hpp>
+#include "../include/conversion.h"
 
 int main(int argc, char *argv[])
 {
@@ -37,6 +37,10 @@ int main(int argc, char *argv[])
             PyObject* exitWindowArg = PyTuple_New(0);
 
             PyObject* windowCheck;
+
+            NDArrayConverter cvt;
+            cv::Mat matImage1;
+            cv::Mat matImage2;
             while (true)
             {
                 if (executeSession1 && PyCallable_Check(executeSession1)
@@ -44,30 +48,19 @@ int main(int argc, char *argv[])
                 {
 
                     PyObject* ex1ret = PyObject_CallObject(executeSession1, executeArg1);
-
-                    PyArrayObject* image_ret = reinterpret_cast<PyArrayObject*>(ex1ret);
-
-                    // The dimensions of the image
-                    npy_intp* dims = image_ret->dimensions;
-                    int image_height_dim = dims[0];
-                    int image_width_dim = dims[1];
-                    int image_color_dim = dims[2];
-
-                    // NOT WORKING
-                    cv::Mat* theImage = new cv::Mat(image_height_dim, image_width_dim, CV_8UC3,  (void*) image_ret->data, 3);
-                    std::cout << "Got passed created image" << std::endl;
-                    cv::namedWindow( "Display window", cv::WINDOW_AUTOSIZE );// Create a window for display.
-                    std::cout << "Got passed named Window" << std::endl;
-                    cv::imshow( "Display window", cv::InputArray(theImage) );
+                    matImage1 = cvt.toMat(ex1ret);
+                    cv::namedWindow( "Display window 1", cv::WINDOW_AUTOSIZE );
+                    cv::imshow( "Display window 1", matImage1);
 
 
-
-
-                    //PyObject* ex2ret = PyObject_CallObject(executeSession2, executeArg2);
+                    PyObject* ex2ret = PyObject_CallObject(executeSession2, executeArg2);
+                    matImage2 = cvt.toMat(ex2ret);
+                    cv::namedWindow( "Display window 2", cv::WINDOW_AUTOSIZE );
+                    cv::imshow( "Display window 2", matImage2);
 
                     windowCheck = PyObject_CallObject(exitWindowTest, exitWindowArg);
 
-                    if (PyObject_IsTrue(windowCheck))
+                    if (PyObject_IsTrue(windowCheck) || cv::waitKey(1) == 113)
                     {
                         Py_DECREF(exitWindowTest);
                         Py_DECREF(exitWindowArg);
