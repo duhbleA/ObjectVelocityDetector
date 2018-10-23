@@ -50,13 +50,16 @@ int main(int argc, char *argv[])
             NDArrayConverter cvt;
             cv::Mat matImage1;
             cv::Mat matImage2;
+            // Reuse reference
+            PyObject *ex1ret;
+            PyObject *ex2ret;
             while (true)
             {
                 if (executeSession1 && PyCallable_Check(executeSession1)
                      && executeSession2 && PyCallable_Check(executeSession2)) {
 
                     // Call execute_session, and convert its result to a cv::Mat
-                    PyObject *ex1ret = PyObject_CallObject(executeSession1, executeArg1);
+                    ex1ret = PyObject_CallObject(executeSession1, executeArg1);
                     if (ex1ret != nullptr)
                     {
                         matImage1 = cvt.toMat(ex1ret);
@@ -68,7 +71,7 @@ int main(int argc, char *argv[])
 
 
                     // Call execute_session, and convert its result to a cv::Mat
-                    PyObject* ex2ret = PyObject_CallObject(executeSession2, executeArg2);
+                    ex2ret = PyObject_CallObject(executeSession2, executeArg2);
                     if (ex2ret != nullptr)
                     {
                         matImage2 = cvt.toMat(ex2ret);
@@ -80,8 +83,9 @@ int main(int argc, char *argv[])
                     windowCheck = PyObject_CallObject(exitWindowTest, exitWindowArg);
                    
                     // Terminate the loop if q is pressed, but first clean and dereference
-                    if (PyObject_IsTrue(windowCheck) || cv::waitKey(1) == 113)
+                    if (PyObject_IsTrue(windowCheck) || ((cv::waitKey(1) & 0xFF) == 113))
                     {
+                        cv::destroyAllWindows();
                         Py_DECREF(exitWindowTest);
                         Py_DECREF(exitWindowArg);
                         Py_DECREF(executeSession1);
