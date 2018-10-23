@@ -4,30 +4,27 @@ Performs sensor fusion using a VLP-16 lidar and a BlackFly camera to determine t
 
 System requirements:
 -Ubuntu 16.04
--Python 3.x
+-Python 2.7
 -TensorFlow
 -One of the object detection models from Tensor Flow's model zoo
 
 Required linux library packages:
--opencv
--opencv-dev
--libpython3-dev
--libpython
--python3-dev
--pcl 1.8x (will need to be compiled for 16.04)
+*opencv
+*opencv-dev
+*libpython-dev
+*libpython
+*python-dev
+*pcl 1.8x (will need to be compiled for 16.04)
+*python-matplotlib
 
-Required Python3.x packages (using pip3):
--python-opencv
--tensorflow
--numpy
--Cython
--contextlib2
--pillow
--lxml
--jupyter
--matplotlib
-
-Numpy's header is often hard to find.  Be sure to modify the include/conversions.h and src/main.cpp include statements to the proper path of ndarrayobject.h
+Required Python2.7 packages (using pip3):
+*python-opencv
+*tensorflow
+*numpy
+*Cython
+*contextlib2
+*pillow
+*lxml
 
 InstallPCL.sh will download all required dependencies, compile and install the PCL library.
 
