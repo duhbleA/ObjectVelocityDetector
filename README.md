@@ -34,3 +34,5 @@ Required Python2.7 packages (using pip):
 InstallPCL.sh will download all required dependencies, compile and install the PCL library.
 
 The expand_usb_core_mem.sh script must be used to expand the USB buffer memory before running this program, or else segmentation faults will occur.
+
+Because of some unknown path appending issues in the Python runtime, the compiled executable MUST run in the same directory as the python modules and main.py. The program will terminate otherwise.
