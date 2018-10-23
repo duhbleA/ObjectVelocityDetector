@@ -1,6 +1,6 @@
-#include <Python.h>
+#include "Python.h"
 #include <iostream>
-#include "/home/team0/.local/lib/python3.5/site-packages/numpy/core/include/numpy/ndarrayobject.h"
+#include "numpy/ndarrayobject.h"
 #include <opencv2/imgproc/imgproc.hpp>
 #include "../include/conversion.h"
 
@@ -9,14 +9,16 @@ int main(int argc, char *argv[])
     // Initialize the Python Interpreter and add all of the local modules
     Py_Initialize();
     PyObject *sysPath = PySys_GetObject((char*)"path");
-    PyList_Append(sysPath, PyUnicode_FromString("."));
+
+    PyList_Append(sysPath, PyUnicode_FromString((char *)"."));
+
 
     // Create the main module (main.py)
     PyObject* moduleString = PyUnicode_FromString((char*) "main");
     PyObject* mainModule = PyImport_Import(moduleString);
 
 
-    if (mainModule != NULL)
+    if (mainModule != nullptr)
     {
         // Create an object that can invoke the start() function defined in main.py
         PyObject* startFunction = PyObject_GetAttrString(mainModule ,(char*) "start");
@@ -51,24 +53,29 @@ int main(int argc, char *argv[])
             while (true)
             {
                 if (executeSession1 && PyCallable_Check(executeSession1)
-                     && executeSession2 && PyCallable_Check(executeSession2))
-                {
+                     && executeSession2 && PyCallable_Check(executeSession2)) {
 
                     // Call execute_session, and convert its result to a cv::Mat
-                    PyObject* ex1ret = PyObject_CallObject(executeSession1, executeArg1);
-                    matImage1 = cvt.toMat(ex1ret);
+                    PyObject *ex1ret = PyObject_CallObject(executeSession1, executeArg1);
+                    if (ex1ret != nullptr)
+                    {
+                        matImage1 = cvt.toMat(ex1ret);
 
-                    // Display the image
-                    cv::namedWindow( "Display window 1", cv::WINDOW_AUTOSIZE );
-                    cv::imshow( "Display window 1", matImage1);
+                        // Display the image
+                        cv::namedWindow("Display window 1", cv::WINDOW_AUTOSIZE);
+                        cv::imshow("Display window 1", matImage1);
+                    }
 
 
                     // Call execute_session, and convert its result to a cv::Mat
                     PyObject* ex2ret = PyObject_CallObject(executeSession2, executeArg2);
-                    matImage2 = cvt.toMat(ex2ret);
-                    // Display the image
-                    cv::namedWindow( "Display window 2", cv::WINDOW_AUTOSIZE );
-                    cv::imshow( "Display window 2", matImage2);
+                    if (ex2ret != nullptr)
+                    {
+                        matImage2 = cvt.toMat(ex2ret);
+                        // Display the image
+                        cv::namedWindow("Display window 2", cv::WINDOW_AUTOSIZE);
+                        cv::imshow("Display window 2", matImage2);
+                    }
 
                     windowCheck = PyObject_CallObject(exitWindowTest, exitWindowArg);
                    

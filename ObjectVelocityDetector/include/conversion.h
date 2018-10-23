@@ -1,11 +1,11 @@
 # ifndef __COVERSION_OPENCV_H__
 # define __COVERSION_OPENCV_H__
 
-#include <Python.h>
+#include "Python.h"
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/core.hpp>
-#include "/home/team0/.local/lib/python3.5/site-packages/numpy/core/include/numpy/ndarrayobject.h"
+#include "numpy/ndarrayobject.h"
 
 #define NUMPY_IMPORT_ARRAY_RETVAL
 
