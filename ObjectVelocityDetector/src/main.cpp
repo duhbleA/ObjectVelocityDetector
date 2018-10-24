@@ -1,10 +1,39 @@
-#include "Python.h"
-#include <iostream>
-#include "numpy/ndarrayobject.h"
-#include <opencv2/imgproc/imgproc.hpp>
-#include "../include/conversion.h"
+#include "../include/main.h"
+
+
+using namespace std;
+using namespace cv;
+using namespace Eigen;
+using namespace pcl;
+
+void initializeVariables() {
+
+    left_rigid_body_transformation <<
+                                   0.999814f, -0.00518012f, -0.0185683f, 0.4019f,
+            0.0103731f, 0.956449f, 0.291714f, -0.31337f,
+            0.0162485f, -0.291852f, 0.956325f, -0.0502383f,
+            0, 0, 0, 1;
+
+    right_rigid_body_transformation <<
+                                    0.998874f, -0.0219703f, -0.0420543f, -0.23583f,
+            0.0293173f, 0.982682f, 0.182967, -0.301624f,
+            0.0373061, -0.183993f, 0.982219f, 0.0268978f,
+            0, 0, 0, 1;
+}
+
+void rigidBodyTransform(pcl::PointCloud<PointType>& in, pcl::PointCloud<PointType>& out, bool isLeft) {
+    if (isLeft) {
+        pcl::transformPointCloud(in, out, left_rigid_body_transformation);
+    } else {
+        pcl::transformPointCloud(in, out, right_rigid_body_transformation);
+    }
+}
+
 
 int main(int argc, char *argv[]) {
+
+    initializeVariables();
+
     // Initialize the Python Interpreter and add all of the local modules
     Py_Initialize();
     PyObject *sysPath = PySys_GetObject((char *) "path");
