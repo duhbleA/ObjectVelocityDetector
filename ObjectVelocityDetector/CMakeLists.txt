@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 project(ObjectVelocityDetector)
 
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR})
 set(CMAKE_CXX_STANDARD 11)
 set(PYTHON_EXECUTABLE "/usr/bin/python")
@@ -22,3 +23,4 @@ link_directories(${PCL_LIBRARY_DIRS} ${PCAP_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 add_executable(ObjectVelocityDetector src/main.cpp src/conversion.cpp)
 target_link_libraries(ObjectVelocityDetector "${PYTHON_LIBRARIES}" ${OpenCV_LIBS} ${PCL_LIBRARIES})
+add_custom_command(TARGET ObjectVelocityDetector POST_BUILD COMMAND $(CMAKE_COMMAND) -E copy $<TARGET_FILE:ObjectVelocityDetector> ../)

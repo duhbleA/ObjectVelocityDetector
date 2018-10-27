@@ -6,33 +6,8 @@ using namespace cv;
 using namespace Eigen;
 using namespace pcl;
 
-void initializeVariables() {
-
-    left_rigid_body_transformation <<
-                                   0.999814f, -0.00518012f, -0.0185683f, 0.4019f,
-            0.0103731f, 0.956449f, 0.291714f, -0.31337f,
-            0.0162485f, -0.291852f, 0.956325f, -0.0502383f,
-            0, 0, 0, 1;
-
-    right_rigid_body_transformation <<
-                                    0.998874f, -0.0219703f, -0.0420543f, -0.23583f,
-            0.0293173f, 0.982682f, 0.182967, -0.301624f,
-            0.0373061, -0.183993f, 0.982219f, 0.0268978f,
-            0, 0, 0, 1;
-}
-
-void rigidBodyTransform(pcl::PointCloud<PointType>& in, pcl::PointCloud<PointType>& out, bool isLeft) {
-    if (isLeft) {
-        pcl::transformPointCloud(in, out, left_rigid_body_transformation);
-    } else {
-        pcl::transformPointCloud(in, out, right_rigid_body_transformation);
-    }
-}
-
 
 int main(int argc, char *argv[]) {
-
-    initializeVariables();
 
     // Initialize the Python Interpreter and add all of the local modules
     Py_Initialize();
@@ -68,6 +43,12 @@ int main(int argc, char *argv[]) {
             // Create an object that can invoke window_terminated_requested() defined in main.py
             PyObject *exitWindowTest = PyObject_GetAttrString(mainModule, (char *) "window_terminated_requested");
             PyObject *exitWindowArg = PyTuple_New(0);
+            
+            PyObject *get_image = PyObject_GetAttrString(mainModule, (char *) "get_image");
+            PyObject *get_boxes = PyObject_GetAttrString(mainModule, (char *) "get_boxes");
+            PyObject *get_imageArgs = PyTuple_New(0);
+            PyObject *get_boxesArgs = PyTuple_New(0);
+            
 
             // The function result of window_terminated_requested
             PyObject *windowCheck;
@@ -76,31 +57,50 @@ int main(int argc, char *argv[]) {
             NDArrayConverter cvt;
             cv::Mat matImage1;
             cv::Mat matImage2;
-            // Reuse reference
-            PyObject *ex1ret;
-            PyObject *ex2ret;
+            
+            PyObject* raw_image;
+            PyObject* bounding_boxes;
+            
             while (true) {
                 if (executeSession1 && PyCallable_Check(executeSession1)
                     && executeSession2 && PyCallable_Check(executeSession2)) {
 
-                    // Call execute_session, and convert its result to a cv::Mat
-                    ex1ret = PyObject_CallObject(executeSession1, executeArg1);
-                    if (ex1ret != nullptr) {
-                        matImage1 = cvt.toMat(ex1ret);
+                    // Call execute_session on camera 1, and convert its result to a cv::Mat
+                     PyObject_CallObject(executeSession1, executeArg1);
+                     raw_image = PyObject_CallObject(get_image, get_imageArgs);
+                     bounding_boxes = PyObject_CallObject(get_boxes, get_boxesArgs);
+                
+                    
+                    if (raw_image != nullptr) {
+                        matImage1 = cvt.toMat(raw_image);
 
                         // Display the image
                         cv::namedWindow("Display window 1", cv::WINDOW_AUTOSIZE);
                         cv::imshow("Display window 1", matImage1);
                     }
+                    
+                    if (bounding_boxes != nullptr)
+                    {
+                       // Do something with the bounding boxes
+                    }
 
 
-                    // Call execute_session, and convert its result to a cv::Mat
-                    ex2ret = PyObject_CallObject(executeSession2, executeArg2);
-                    if (ex2ret != nullptr) {
-                        matImage2 = cvt.toMat(ex2ret);
+                    // Call execute_session on camera 2, and convert its result to a cv::Mat
+                    PyObject_CallObject(executeSession2, executeArg2);
+                    raw_image = PyObject_CallObject(get_image, get_imageArgs);
+                     bounding_boxes = PyObject_CallObject(get_boxes, get_boxesArgs);
+                    
+                    
+                    if (raw_image != nullptr) {
+                        matImage2 = cvt.toMat(raw_image);
                         // Display the image
                         cv::namedWindow("Display window 2", cv::WINDOW_AUTOSIZE);
                         cv::imshow("Display window 2", matImage2);
+                    }
+                    
+                    if (bounding_boxes != nullptr)
+                    {
+                        // Do something with the bounding boxes
                     }
 
                     windowCheck = PyObject_CallObject(exitWindowTest, exitWindowArg);
@@ -115,6 +115,10 @@ int main(int argc, char *argv[]) {
                         Py_DECREF(executeSession2);
                         Py_DECREF(executeArg2);
                         Py_DECREF(windowCheck);
+                        Py_DECREF(get_boxes);
+                        Py_DECREF(get_boxesArgs);
+                        Py_DECREF(get_image);
+                        Py_DECREF(get_imageArgs);
                         break;
                     }
                 }
