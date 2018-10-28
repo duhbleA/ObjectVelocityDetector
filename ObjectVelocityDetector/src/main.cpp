@@ -195,10 +195,8 @@ int main( int argc, char *argv[] )
         viewer->spinOnce();
 
         boost::mutex::scoped_try_lock lock( mutex );
-        if( lock.owns_lock() )
+        if( lock.owns_lock() && cloud)
         {
-            
-            /**
 
             xformedCloud = cloud;
 
@@ -206,7 +204,6 @@ int main( int argc, char *argv[] )
             if( !viewer->updatePointCloud( xformedCloud, *handler, "cloud" ) )
             {
                 viewer->addPointCloud( xformedCloud, *handler, "cloud" );
-            **/
             
             pcc->spinOnCamera1();
             cv::Mat image = pcc->imageFromLastSpin();
