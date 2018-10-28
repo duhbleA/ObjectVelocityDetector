@@ -14,13 +14,15 @@ find_package(OpenCV REQUIRED)
 find_package (Eigen3 REQUIRED)
 
 
-include_directories(${PCL_INCLUDE_DIRS} ${PYTHON_INCLUDE_DIRS} ${PYTHON_NUMPY_INCLUDE_DIR}
-        ${PROJECT_SOURCE_DIR}/include/main.h
-        ${PROJECT_SOURCE_DIR}/include/conversions.h  ${OpenCV_INCLUDE_DIRS}
+include_directories(${PCL_INCLUDE_DIRS}
+        ${PYTHON_INCLUDE_DIRS} ${PYTHON_NUMPY_INCLUDE_DIR}
+        ${PROJECT_SOURCE_DIR}/include/conversions.h
+        ${OpenCV_INCLUDE_DIRS}
+        ${PROJECT_SOURCE_DIR}/include/pythoncodecontroller.h
         ${EIGEN3_INCLUDE_DIR})
 
 link_directories(${PCL_LIBRARY_DIRS} ${PCAP_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
-add_executable(ObjectVelocityDetector src/main.cpp src/conversion.cpp)
+add_executable(ObjectVelocityDetector src/main.cpp src/conversion.cpp src/pythoncodecontroller.cpp)
 target_link_libraries(ObjectVelocityDetector "${PYTHON_LIBRARIES}" ${OpenCV_LIBS} ${PCL_LIBRARIES})
 add_custom_command(TARGET ObjectVelocityDetector POST_BUILD COMMAND $(CMAKE_COMMAND) -E copy $<TARGET_FILE:ObjectVelocityDetector> ../)

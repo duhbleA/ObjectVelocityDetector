@@ -165,7 +165,7 @@ def remove_none_detections(boxes):
     """
     bounding_boxes_no_zeroes = []
     for i in xrange(np.shape(boxes)[1]):
-        if boxes[0][i][0] != 0 or boxes[0][i][1] != 0 or boxes[0][i][2] != 0 or boxes[0][i][3]:
+        if boxes[0][i][0] != 0 or boxes[0][i][1] != 0 or boxes[0][i][2] != 0 or boxes[0][i][3] != 0:
             bounding_boxes_no_zeroes.append(un_normalize_bounding_boxes(boxes[0][i]))
 
     return np.array(bounding_boxes_no_zeroes, dtype=np.float32)

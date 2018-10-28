@@ -1,143 +1,240 @@
-#include "../include/main.h"
+#include <iostream>
+#include <string>
+#include <thread>
+#include <vector>
 
+#include <Eigen/Dense>
+#include <Eigen/SVD>
+#include <Eigen/Geometry>
+#include <unsupported/Eigen/MatrixFunctions>
+#include <pcl/common/eigen.h>
+#include <pcl/common/transforms.h>
+#include "../include/pythoncodecontroller.h"
 
-using namespace std;
+#include <math.h>
+
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/io/vlp_grabber.h>
+#include <pcl/console/parse.h>
+#include <pcl/visualization/pcl_visualizer.h>
+
+#include <chrono>
+
 using namespace cv;
 using namespace Eigen;
-using namespace pcl;
+using namespace std;
+
+constexpr float Rad2Deg = 180.0 / M_PI;
+
+Matrix4f left_rigid_body_transformation;
+Matrix4f right_rigid_body_transformation;
+
+void InitXForms()
+{
+//    left_rigid_body_transformation <<
+//            1.0f,       -0.0f,          -0.0f,      0.4019f,
+//            0.0f,       1.0f,           0.291714f,  -0.31337f,
+//            0.0f,       -0.291852f,     1.0f,       -0.0f,
+//            0,          0,              0,          1.0f;
 
 
-int main(int argc, char *argv[]) {
+    left_rigid_body_transformation <<
+            1.0f,       -0.0f,          -0.0f,      0.31337f,
+            0.0f,       1.0f,           0.0,        -0.0f,
+            0.0f,       -0.0,           1.0f,       -0.0f,
+            0,          0,              0,          1.0f;
+//    left_rigid_body_transformation <<
+//            0.999814f, -0.00518012f, -0.0185683f, 0.4019f,
+//            0.0103731f, 0.956449f, 0.291714f, -0.31337f,
+//            0.0162485f, -0.291852f, 0.956325f, -0.0502383f,
+//            0, 0, 0, 1;
 
-    // Initialize the Python Interpreter and add all of the local modules
-    Py_Initialize();
-    PyObject *sysPath = PySys_GetObject((char *) "path");
-
-    PyList_Append(sysPath, PyUnicode_FromString((char *) "."));
-
-
-    // Create the main module (main.py)
-    PyObject *moduleString = PyUnicode_FromString((char *) "main");
-    PyObject *mainModule = PyImport_Import(moduleString);
-
-
-    if (mainModule != nullptr) {
-        // Create an object that can invoke the start() function defined in main.py
-        PyObject *startFunction = PyObject_GetAttrString(mainModule, (char *) "start");
-
-        if (startFunction && PyCallable_Check(startFunction)) {
-            // Create a default blank argument and invoke start() defined in main.py
-            PyObject *startArg = PyTuple_New(0);
-            PyObject_CallObject(startFunction, startArg);
-            Py_DECREF(startArg);
-            Py_DECREF(startFunction);
-
-            // Create an object that can invoke execute_session("1") defined in main.py
-            PyObject *executeSession1 = PyObject_GetAttrString(mainModule, (char *) "execute_session");
-            PyObject *executeArg1 = PyTuple_Pack(1, PyUnicode_FromString((char *) "0"));
-
-            // Create an object that can invoke execute_session("2") defined in main.py
-            PyObject *executeSession2 = PyObject_GetAttrString(mainModule, (char *) "execute_session");
-            PyObject *executeArg2 = PyTuple_Pack(1, PyUnicode_FromString((char *) "1"));
-
-            // Create an object that can invoke window_terminated_requested() defined in main.py
-            PyObject *exitWindowTest = PyObject_GetAttrString(mainModule, (char *) "window_terminated_requested");
-            PyObject *exitWindowArg = PyTuple_New(0);
-            
-            PyObject *get_image = PyObject_GetAttrString(mainModule, (char *) "get_image");
-            PyObject *get_boxes = PyObject_GetAttrString(mainModule, (char *) "get_boxes");
-            PyObject *get_imageArgs = PyTuple_New(0);
-            PyObject *get_boxesArgs = PyTuple_New(0);
-            
-
-            // The function result of window_terminated_requested
-            PyObject *windowCheck;
-
-            // Converts ndarray of numpy values to a cv::Mat
-            NDArrayConverter cvt;
-            cv::Mat matImage1;
-            cv::Mat matImage2;
-            
-            PyObject* raw_image;
-            PyObject* bounding_boxes;
-            
-            while (true) {
-                if (executeSession1 && PyCallable_Check(executeSession1)
-                    && executeSession2 && PyCallable_Check(executeSession2)) {
-
-                    // Call execute_session on camera 1, and convert its result to a cv::Mat
-                     PyObject_CallObject(executeSession1, executeArg1);
-                     raw_image = PyObject_CallObject(get_image, get_imageArgs);
-                     bounding_boxes = PyObject_CallObject(get_boxes, get_boxesArgs);
-                
-                    
-                    if (raw_image != nullptr) {
-                        matImage1 = cvt.toMat(raw_image);
-
-                        // Display the image
-                        cv::namedWindow("Display window 1", cv::WINDOW_AUTOSIZE);
-                        cv::imshow("Display window 1", matImage1);
-                    }
-                    
-                    if (bounding_boxes != nullptr)
-                    {
-                       // Do something with the bounding boxes
-                    }
+    right_rigid_body_transformation <<
+            0.998874f, -0.0219703f, -0.0420543f, -0.23583f,
+            0.0293173f, 0.982682f, 0.182967, -0.301624f,
+            0.0373061, -0.183993f, 0.982219f, 0.0268978f,
+            0, 0, 0, 1;
+}
 
 
-                    // Call execute_session on camera 2, and convert its result to a cv::Mat
-                    PyObject_CallObject(executeSession2, executeArg2);
-                    raw_image = PyObject_CallObject(get_image, get_imageArgs);
-                     bounding_boxes = PyObject_CallObject(get_boxes, get_boxesArgs);
-                    
-                    
-                    if (raw_image != nullptr) {
-                        matImage2 = cvt.toMat(raw_image);
-                        // Display the image
-                        cv::namedWindow("Display window 2", cv::WINDOW_AUTOSIZE);
-                        cv::imshow("Display window 2", matImage2);
-                    }
-                    
-                    if (bounding_boxes != nullptr)
-                    {
-                        // Do something with the bounding boxes
-                    }
+struct mtypes
+{
+    float v4;
+    float v3;
+    float a4;
+    float a3;
+};
 
-                    windowCheck = PyObject_CallObject(exitWindowTest, exitWindowArg);
+struct xyzw
+{
+    mtypes x, y, z, w;
+};
 
-                    // Terminate the loop if q is pressed, but first clean and dereference
-                    if (PyObject_IsTrue(windowCheck) || ((cv::waitKey(1) & 0xFF) == 113)) {
-                        cv::destroyAllWindows();
-                        Py_DECREF(exitWindowTest);
-                        Py_DECREF(exitWindowArg);
-                        Py_DECREF(executeSession1);
-                        Py_DECREF(executeArg1);
-                        Py_DECREF(executeSession2);
-                        Py_DECREF(executeArg2);
-                        Py_DECREF(windowCheck);
-                        Py_DECREF(get_boxes);
-                        Py_DECREF(get_boxesArgs);
-                        Py_DECREF(get_image);
-                        Py_DECREF(get_imageArgs);
-                        break;
-                    }
-                }
-            }
 
-            // Invoke the stop() method defined in main.py
-            PyObject *stop = PyObject_GetAttrString(mainModule, (char *) "window_terminated_requested");
-            PyObject *stopArg = PyTuple_New(0);
-            PyObject_CallObject(stop, stopArg);
+// Point Type
+// pcl::PointXYZ, pcl::PointXYZI, pcl::PointXYZRGBA
+typedef pcl::PointXYZI PointType;
 
-            Py_DECREF(stop);
-            Py_DECREF(stopArg);
 
-        }
-    } else {
-        std::cout << "main.py could not be found. Be sure to run the program from the same directory as main.py"
+void parseInitialArgs(int argc, char *argv[], std::string& ipaddress, std::string& port, std::string& pcap)
+{
+        // Command-Line Argument Parsing
+    if( pcl::console::find_switch( argc, argv, "-help" ) ){
+        std::cout << "usage: " << argv[0]
+                  << " [-ipaddress <192.168.1.70>]"
+                  << " [-port <2368>]"
+                  << " [-pcap <*.pcap>]"
+                  << " [-help]"
                   << std::endl;
+        exit(1);
     }
-    // Terminate the python runtime
+
+    pcl::console::parse_argument( argc, argv, "-ipaddress", ipaddress );
+    pcl::console::parse_argument( argc, argv, "-port", port );
+    pcl::console::parse_argument( argc, argv, "-pcap", pcap );
+
+    std::cout << "-ipadress : " << ipaddress << std::endl;
+    std::cout << "-port : " << port << std::endl;
+    std::cout << "-pcap : " << pcap << std::endl;
+}
+
+void initializePCLViewer(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer,  pcl::visualization::PointCloudColorHandler<PointType>::Ptr& handler)
+{
+    viewer->addCoordinateSystem( 3.0, "coordinate" );
+    viewer->setBackgroundColor( 0.0, 0.0, 0.0, 0 );
+    viewer->initCameraParameters();
+    viewer->setCameraPosition( 0.0, 0.0, 30.0, 0.0, 1.0, 0.0, 0 );
+    
+     const std::type_info& type = typeid( PointType );
+    if( type == typeid( pcl::PointXYZ ) ){
+        std::vector<double> color = { 255.0, 255.0, 255.0 };
+        boost::shared_ptr<pcl::visualization::PointCloudColorHandlerCustom<PointType>> color_handler( new pcl::visualization::PointCloudColorHandlerCustom<PointType>( color[0], color[1], color[2] ) );
+        handler = color_handler;
+    }
+    else if( type == typeid( pcl::PointXYZI ) ){
+        boost::shared_ptr<pcl::visualization::PointCloudColorHandlerGenericField<PointType>> color_handler( new pcl::visualization::PointCloudColorHandlerGenericField<PointType>( "intensity" ) );
+        handler = color_handler;
+    }
+    else if( type == typeid( pcl::PointXYZRGBA ) ){
+        boost::shared_ptr<pcl::visualization::PointCloudColorHandlerRGBField<PointType>> color_handler( new pcl::visualization::PointCloudColorHandlerRGBField<PointType>() );
+        handler = color_handler;
+    }
+    else{
+        throw std::runtime_error( "This PointType is unsupported." );
+    }
+}
+
+void initializeGrabber(boost::shared_ptr<pcl::VLPGrabber>& grabber, std::string& ipaddress, std::string& port, std::string& pcap)
+{
+    if( !pcap.empty() ) {
+        std::cout << "Capture from PCAP..." << std::endl;
+        grabber = boost::shared_ptr<pcl::VLPGrabber>( new pcl::VLPGrabber( pcap ) );
+    }
+    else if( !ipaddress.empty() && !port.empty() ){
+        std::cout << "Capture from Sensor..." << std::endl;
+        grabber = boost::shared_ptr<pcl::VLPGrabber>( new pcl::VLPGrabber( boost::asio::ip::address::from_string( ipaddress ), boost::lexical_cast<unsigned short>( port ) ) );
+    }
+
+}
+
+int main( int argc, char *argv[] )
+{
+    std::string ipaddress( "192.168.1.70" );
+    std::string port( "2368" );
+    std::string pcap;
+    
+    parseInitialArgs(argc, argv, ipaddress, port, pcap);
+    
+    // Point Clouds initialization
+    pcl::PointCloud<PointType>::ConstPtr cloud;
+    pcl::PointCloud<PointType>::ConstPtr xformedCloud = cloud;   
+
+
+    // Point Cloud Color Handler and viewer initialization
+    pcl::visualization::PointCloudColorHandler<PointType>::Ptr handler;
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer( new pcl::visualization::PCLVisualizer( "Velodyne Viewer" ) );
+     
+    initializePCLViewer(viewer, handler);
+
+
+    // Retrieved Point Cloud Callback Function
+    boost::mutex mutex;
+    boost::function<void( const pcl::PointCloud<PointType>::ConstPtr& )> function =
+            [ &cloud, &mutex ]( const pcl::PointCloud<PointType>::ConstPtr& ptr ){
+                boost::mutex::scoped_lock lock( mutex );
+
+                /* Point Cloud Processing */
+                pcl::transformPointCloud(*ptr, *boost::const_pointer_cast<pcl::PointCloud<PointType> >(ptr), left_rigid_body_transformation);
+                cloud = ptr;
+            };
+
+    // VLP Grabber
+    boost::shared_ptr<pcl::VLPGrabber> grabber;
+    initializeGrabber(grabber, ipaddress, port, pcap);
+
+
+    // Register Callback Function
+    boost::signals2::connection connection = grabber->registerCallback( function );
+    
+    // Initialize transforms
+    InitXForms();
+    
+    // Initialize Python script controllers
+    Py_Initialize();
+    PythonCodeController* pcc = new PythonCodeController();
+    pcc->start();
+
+    // Start Grabber
+    grabber->start();
+
+    // The loop where the magic happens
+    while( !viewer->wasStopped() )
+    {
+        // Update Viewer
+        viewer->spinOnce();
+
+        boost::mutex::scoped_try_lock lock( mutex );
+        if( lock.owns_lock() )
+        {
+            
+            /**
+
+            xformedCloud = cloud;
+
+            handler->setInputCloud( xformedCloud );
+            if( !viewer->updatePointCloud( xformedCloud, *handler, "cloud" ) )
+            {
+                viewer->addPointCloud( xformedCloud, *handler, "cloud" );
+            **/
+            
+            pcc->spinOnCamera1();
+            cv::Mat image = pcc->imageFromLastSpin();
+            cv::Mat boxes = pcc->boxesFromLastSpin();
+            cv::namedWindow("Display window 1", cv::WINDOW_AUTOSIZE);
+            cv::imshow("Display window 1", image);
+            
+            if (((cv::waitKey(1) & 0xFF) == 113))
+            {
+                cv::destroyAllWindows();
+                break;
+            }
+            
+            
+        }
+    }
+
+    // Stop Grabber
+    grabber->stop();
+    
+    // Stop Python script controller
+    pcc->terminate();
     Py_Finalize();
+    
+    // Disconnect Callback Function
+    if( connection.connected() ){
+        connection.disconnect();
+    }
+
     return 0;
 }
