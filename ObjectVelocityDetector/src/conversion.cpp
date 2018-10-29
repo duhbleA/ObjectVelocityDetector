@@ -50,15 +50,15 @@ using namespace cv;
 
 static PyObject* failmsgp(const char *fmt, ...)
 {
-  char str[1000];
+    char str[1000];
 
-  va_list ap;
-  va_start(ap, fmt);
-  vsnprintf(str, sizeof(str), fmt, ap);
-  va_end(ap);
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(str, sizeof(str), fmt, ap);
+    va_end(ap);
 
-  PyErr_SetString(PyExc_TypeError, str);
-  return 0;
+    PyErr_SetString(PyExc_TypeError, str);
+    return 0;
 }
 
 class NumpyAllocator : public MatAllocator
@@ -118,7 +118,9 @@ public:
 
 NumpyAllocator g_numpyAllocator;
 
-NDArrayConverter::NDArrayConverter() { init(); }
+NDArrayConverter::NDArrayConverter() {
+    init();
+}
 
 void NDArrayConverter::init()
 {
@@ -201,7 +203,7 @@ cv::Mat NDArrayConverter::toMat(const PyObject *o)
     {
         m.refcount = refcountFromPyObject(o);
         m.addref(); // protect the original numpy array from deallocation
-                    // (since Mat destructor will decrement the reference counter)
+        // (since Mat destructor will decrement the reference counter)
     };
     m.allocator = &g_numpyAllocator;
 

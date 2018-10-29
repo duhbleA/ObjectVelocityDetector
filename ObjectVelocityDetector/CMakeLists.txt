@@ -16,9 +16,8 @@ find_package (Eigen3 REQUIRED)
 
 include_directories(${PCL_INCLUDE_DIRS}
         ${PYTHON_INCLUDE_DIRS} ${PYTHON_NUMPY_INCLUDE_DIR}
-        ${PROJECT_SOURCE_DIR}/include/conversions.h
+        ${PROJECT_SOURCE_DIR}/include/
         ${OpenCV_INCLUDE_DIRS}
-        ${PROJECT_SOURCE_DIR}/include/pythoncodecontroller.h
         ${EIGEN3_INCLUDE_DIR})
 
 link_directories(${PCL_LIBRARY_DIRS} ${PCAP_LIBRARY_DIRS})

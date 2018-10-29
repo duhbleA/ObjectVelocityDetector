@@ -33,7 +33,7 @@ catch (const cv::Exception &e) \
 static PyObject* failmsgp(const char *fmt, ...);
 
 static size_t REFCOUNT_OFFSET = (size_t)&(((PyObject*)0)->ob_refcnt) +
-    (0x12345678 != *(const size_t*)"\x78\x56\x34\x12\0\0\0\0\0")*sizeof(int);
+                                (0x12345678 != *(const size_t*)"\x78\x56\x34\x12\0\0\0\0\0")*sizeof(int);
 
 static inline PyObject* pyObjectFromRefcount(const int* refcount)
 {
