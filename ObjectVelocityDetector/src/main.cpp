@@ -32,6 +32,8 @@ constexpr float Rad2Deg = 180.0 / M_PI;
 Matrix4f left_rigid_body_transformation;
 Matrix4f right_rigid_body_transformation;
 
+cv::Mat left_projection_matrix;
+
 void InitXForms()
 {
 //    left_rigid_body_transformation <<
@@ -41,22 +43,33 @@ void InitXForms()
 //            0,          0,              0,          1.0f;
 
 
+    //left_rigid_body_transformation <<
+      //                             1.0f,       -0.0f,          -0.0f,      0.31337f,
+        //                                       0.0f,       1.0f,           0.0,        -0.0f,
+          //                                     0.0f,       -0.0,           1.0f,       -0.0f,
+            //                                   0,          0,              0,          1.0f;
     left_rigid_body_transformation <<
-                                   1.0f,       -0.0f,          -0.0f,      0.31337f,
-                                               0.0f,       1.0f,           0.0,        -0.0f,
-                                               0.0f,       -0.0,           1.0f,       -0.0f,
-                                               0,          0,              0,          1.0f;
-//    left_rigid_body_transformation <<
-//            0.999814f, -0.00518012f, -0.0185683f, 0.4019f,
-//            0.0103731f, 0.956449f, 0.291714f, -0.31337f,
-//            0.0162485f, -0.291852f, 0.956325f, -0.0502383f,
-//            0, 0, 0, 1;
+            0.999814f, -0.00518012f, -0.0185683f, 0.4019f,
+            0.0103731f, 0.956449f, 0.291714f, -0.31337f,
+            0.0162485f, -0.291852f, 0.956325f, -0.0502383f,
+            0, 0, 0, 1;
 
     right_rigid_body_transformation <<
                                     0.998874f, -0.0219703f, -0.0420543f, -0.23583f,
                                                0.0293173f, 0.982682f, 0.182967, -0.301624f,
                                                0.0373061, -0.183993f, 0.982219f, 0.0268978f,
                                                0, 0, 0, 1;
+
+    float left_raw_projection[12] = {942.129700f, 0.0, 985.634114f, 0.0,
+                                     0.0, 1060.674438f, 600.441036f, 0.0,
+                                     0.0, 0.0, 1.0f, 0.0
+                                    };
+                                    
+    float left_raw_projection_example[12] = {611.651245f, 0.0f, 642.388357f, 0.0f,
+0.0f, 688.443726f, 365.971718f, 0.0f,
+0.0f, 0.0f, 1.0f, 0.0f};
+
+    cv::Mat(3, 4, CV_32FC1, &left_raw_projection).copyTo(left_projection_matrix);
 }
 
 
@@ -76,7 +89,6 @@ struct xyzw
 
 // Point Type
 // pcl::PointXYZ, pcl::PointXYZI, pcl::PointXYZRGBA
-typedef pcl::PointXYZI PointType;
 
 
 void parseInitialArgs(int argc, char *argv[], std::string& ipaddress, std::string& port, std::string& pcap)
@@ -101,7 +113,7 @@ void parseInitialArgs(int argc, char *argv[], std::string& ipaddress, std::strin
     std::cout << "-pcap : " << pcap << std::endl;
 }
 
-void initializePCLViewer(boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer,  pcl::visualization::PointCloudColorHandler<PointType>::Ptr& handler)
+void initializePCLViewer(boost::shared_ptr<pcl::visualization::PCLVisualizer>& viewer,  pcl::visualization::PointCloudColorHandler<PointType>::Ptr& handler)
 {
     viewer->addCoordinateSystem( 3.0, "coordinate" );
     viewer->setBackgroundColor( 0.0, 0.0, 0.0, 0 );
@@ -208,13 +220,36 @@ int main( int argc, char *argv[] )
                 {
                     viewer->addPointCloud( xformedCloud, *handler, "cloud" );
                 }
-            }
 
-            pcc->spinOnCamera1();
-            cv::Mat image = pcc->imageFromLastSpin();
-            cv::Mat boxes = pcc->boxesFromLastSpin();
-            cv::namedWindow("Display window 1", cv::WINDOW_AUTOSIZE);
-            cv::imshow("Display window 1", image);
+                pcc->spinOnCamera1();
+                cv::Mat image = pcc->imageFromLastSpin();
+                cv::Mat boxes = pcc->boxesFromLastSpin();
+
+                const pcl::PointCloud<PointType> *raw_foo = xformedCloud.get();
+                pcl::PointCloud<pcl::PointXYZ> retval = *(toPointsXYZ(*raw_foo));
+
+                cv::Rect frame(0, 0, 1280, 720);
+
+                pcl::PointCloud<pcl::PointXYZ>* newCloud = new pcl::PointCloud<pcl::PointXYZ>();
+                
+                cv::Mat points_projected = project(left_projection_matrix, frame, retval, newCloud);
+                cv::threshold(points_projected, points_projected, 10, 255, 0);
+                
+                
+                cv::Mat combined_rgb_laser;
+                std::vector<cv::Mat> rgb_laser_channels;
+                
+                cv:cvtColor(image, image, CV_BGR2GRAY);
+
+                rgb_laser_channels.push_back(points_projected);
+                rgb_laser_channels.push_back(cv::Mat::zeros(points_projected.size(), CV_8UC1));
+                rgb_laser_channels.push_back(image);
+
+                cv::merge(rgb_laser_channels, combined_rgb_laser);
+
+                cv::namedWindow("Display window 1", cv::WINDOW_AUTOSIZE);
+                cv::imshow("Display window 1", combined_rgb_laser);
+            }
 
             if (((cv::waitKey(1) & 0xFF) == 113))
             {

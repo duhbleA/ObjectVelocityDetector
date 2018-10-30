@@ -1,4 +1,6 @@
 
+typedef pcl::PointXYZI PointType;
+
 cv::Point project(const pcl::PointXYZ &pt, const cv::Mat &projection_matrix)
 {
     //cv::Point2f xy = projectf(pt, projection_matrix);
@@ -51,3 +53,15 @@ cv::Mat project(cv::Mat projection_matrix, cv::Rect frame, pcl::PointCloud<pcl::
 
     return plane_gray;
 }
+
+pcl::PointCloud<pcl::PointXYZ>* toPointsXYZ(pcl::PointCloud<PointType> point_cloud)
+{
+    pcl::PointCloud<pcl::PointXYZ> *new_cloud = new pcl::PointCloud<pcl::PointXYZ>();
+    for (pcl::PointCloud<PointType>::iterator pt = point_cloud.points.begin(); pt < point_cloud.points.end(); pt++)
+    {
+        new_cloud->push_back(pcl::PointXYZ(pt->x, pt->y, pt->z));
+    }
+    return new_cloud;
+}
+
+
