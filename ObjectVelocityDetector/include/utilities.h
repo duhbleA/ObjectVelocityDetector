@@ -1,7 +1,7 @@
 
 typedef pcl::PointXYZI PointType;
 
-cv::Point project(const pcl::PointXYZ &pt, const cv::Mat &projection_matrix)
+cv::Point project(const PointType &pt, const cv::Mat &projection_matrix)
 {
     //cv::Point2f xy = projectf(pt, projection_matrix);
     cv::Mat pt_3D(4, 1, CV_32FC1);
@@ -19,11 +19,11 @@ cv::Point project(const pcl::PointXYZ &pt, const cv::Mat &projection_matrix)
     return cv::Point(x, y);
 }
 
-cv::Mat project(cv::Mat projection_matrix, cv::Rect frame, pcl::PointCloud<pcl::PointXYZ> point_cloud, pcl::PointCloud<pcl::PointXYZ> *visible_points)
+cv::Mat project(cv::Mat projection_matrix, cv::Rect frame, pcl::PointCloud<PointType> point_cloud, pcl::PointCloud<PointType> *visible_points)
 {
     cv::Mat plane = cv::Mat::zeros(frame.size(), CV_32FC1);
 
-    for (pcl::PointCloud<pcl::PointXYZ>::iterator pt = point_cloud.points.begin(); pt < point_cloud.points.end(); pt++)
+    for (pcl::PointCloud<PointType>::iterator pt = point_cloud.points.begin(); pt < point_cloud.points.end(); pt++)
     {
 
         // behind the camera
@@ -42,8 +42,7 @@ cv::Mat project(cv::Mat projection_matrix, cv::Rect frame, pcl::PointCloud<pcl::
             }
 
             //cv::circle(plane, xy, 3, intensity, -1);
-            //plane.at<float>(xy) = intensity;
-            plane.at<float>(xy)=250;
+            plane.at<float>(xy) = pt->intensity;
         }
     }
 
@@ -64,4 +63,55 @@ pcl::PointCloud<pcl::PointXYZ>* toPointsXYZ(pcl::PointCloud<PointType> point_clo
     return new_cloud;
 }
 
+void performTransform(const pcl::PointCloud<PointType>& point_cloud, pcl::PointCloud<PointType>& point_cloud_out, float x, float y, float z, float rottyx, float rottyy, float rottyz)
+{
+  Eigen::Affine3f transf = pcl::getTransformation(x, y, z, rottyx, rottyy, rottyz);
+  pcl::PointCloud<PointType> new_cloud;
+  pcl::transformPointCloud(point_cloud, point_cloud_out, transf);
+}
 
+cv::Vec3b atf(cv::Mat rgb, cv::Point xy_f)
+  {
+    cv::Vec3i color_i;
+    color_i.val[0] = color_i.val[1] = color_i.val[2] = 0;
+
+    int x = xy_f.x;
+    int y = xy_f.y;
+
+    for (int row = 0; row <= 1; row++)
+    {
+      for (int col = 0; col <= 1; col++)
+      {
+        cv::Vec3b c = rgb.at<cv::Vec3b>(cv::Point(x + col, y + row));
+        for (int i = 0; i < 3; i++)
+        {
+          color_i.val[i] += c.val[i];
+        }
+      }
+    }
+
+    cv::Vec3b color;
+    for (int i = 0; i < 3; i++)
+    {
+      color.val[i] = color_i.val[i] / 4;
+    }
+    return color;
+  }
+  
+  pcl::PointCloud<pcl::PointXYZRGB> colour(pcl::PointCloud<PointType> point_cloud, cv::Mat frame_rgb, cv::Mat P)
+{
+  pcl::PointCloud<pcl::PointXYZRGB> color_cloud;
+  for (pcl::PointCloud<PointType>::iterator pt = point_cloud.begin(); pt < point_cloud.end(); pt++)
+  {
+    cv::Point xy = project(*pt, P);
+
+    cv::Vec3b rgb = atf(frame_rgb, xy);
+    pcl::PointXYZRGB pt_rgb(rgb.val[2], rgb.val[1], rgb.val[0]);
+    pt_rgb.x = pt->x;
+    pt_rgb.y = pt->y;
+    pt_rgb.z = pt->z;
+
+    color_cloud.push_back(pt_rgb);
+  }
+  return color_cloud;
+}

@@ -179,6 +179,7 @@ int main( int argc, char *argv[] )
         boost::mutex::scoped_lock lock( mutex );
 
         /* Point Cloud Processing */
+        performTransform(*ptr, *boost::const_pointer_cast<pcl::PointCloud<PointType> >(ptr), 0, 0, 0, M_PI / 2, 0, 0);
         pcl::transformPointCloud(*ptr, *boost::const_pointer_cast<pcl::PointCloud<PointType> >(ptr), left_rigid_body_transformation);
         cloud = ptr;
     };
@@ -226,13 +227,12 @@ int main( int argc, char *argv[] )
                 cv::Mat boxes = pcc->boxesFromLastSpin();
 
                 const pcl::PointCloud<PointType> *raw_foo = xformedCloud.get();
-                pcl::PointCloud<pcl::PointXYZ> retval = *(toPointsXYZ(*raw_foo));
 
                 cv::Rect frame(0, 0, 1280, 720);
 
-                pcl::PointCloud<pcl::PointXYZ>* newCloud = new pcl::PointCloud<pcl::PointXYZ>();
+                pcl::PointCloud<PointType>* newCloud = new pcl::PointCloud<PointType>();
                 
-                cv::Mat points_projected = project(left_projection_matrix, frame, retval, newCloud);
+                cv::Mat points_projected = project(left_projection_matrix, frame, *raw_foo, newCloud);
                 cv::threshold(points_projected, points_projected, 10, 255, 0);
                 
                 
