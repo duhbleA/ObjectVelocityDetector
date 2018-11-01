@@ -43,16 +43,16 @@ void InitXForms()
 //            0,          0,              0,          1.0f;
 
 
-    //left_rigid_body_transformation <<
-      //                             1.0f,       -0.0f,          -0.0f,      0.31337f,
-        //                                       0.0f,       1.0f,           0.0,        -0.0f,
-          //                                     0.0f,       -0.0,           1.0f,       -0.0f,
-            //                                   0,          0,              0,          1.0f;
     left_rigid_body_transformation <<
-            0.999814f, -0.00518012f, -0.0185683f, 0.4019f,
-            0.0103731f, 0.956449f, 0.291714f, -0.31337f,
-            0.0162485f, -0.291852f, 0.956325f, -0.0502383f,
-            0, 0, 0, 1;
+                                   1.0f,       -0.0f,          -0.0f,      0.31337f,
+                                               0.0f,       1.0f,           0.0,        -0.0f,
+                                               0.0f,       -0.0,           1.0f,       -0.0f,
+                                               0,          0,              0,          1.0f;
+    //left_rigid_body_transformation <<
+    //0.999814f, -0.00518012f, -0.0185683f, 0.4019f,
+    //0.0103731f, 0.956449f, 0.291714f, -0.31337f,
+    //0.0162485f, -0.291852f, 0.956325f, -0.0502383f,
+    //0, 0, 0, 1;
 
     right_rigid_body_transformation <<
                                     0.998874f, -0.0219703f, -0.0420543f, -0.23583f,
@@ -64,10 +64,11 @@ void InitXForms()
                                      0.0, 1060.674438f, 600.441036f, 0.0,
                                      0.0, 0.0, 1.0f, 0.0
                                     };
-                                    
+
     float left_raw_projection_example[12] = {611.651245f, 0.0f, 642.388357f, 0.0f,
-0.0f, 688.443726f, 365.971718f, 0.0f,
-0.0f, 0.0f, 1.0f, 0.0f};
+                                             0.0f, 688.443726f, 365.971718f, 0.0f,
+                                             0.0f, 0.0f, 1.0f, 0.0f
+                                            };
 
     cv::Mat(3, 4, CV_32FC1, &left_raw_projection).copyTo(left_projection_matrix);
 }
@@ -179,8 +180,9 @@ int main( int argc, char *argv[] )
         boost::mutex::scoped_lock lock( mutex );
 
         /* Point Cloud Processing */
-        performTransform(*ptr, *boost::const_pointer_cast<pcl::PointCloud<PointType> >(ptr), 0, 0, 0, M_PI / 2, 0, 0);
+        performTransform(*ptr, *boost::const_pointer_cast<pcl::PointCloud<PointType> >(ptr), 0, 0, 0,  M_PI / 2, 0, 0);
         pcl::transformPointCloud(*ptr, *boost::const_pointer_cast<pcl::PointCloud<PointType> >(ptr), left_rigid_body_transformation);
+
         cloud = ptr;
     };
 
@@ -216,39 +218,44 @@ int main( int argc, char *argv[] )
             {
                 xformedCloud = cloud;
 
-                handler->setInputCloud( xformedCloud );
-                if( !viewer->updatePointCloud( xformedCloud, *handler, "cloud" ) )
-                {
-                    viewer->addPointCloud( xformedCloud, *handler, "cloud" );
-                }
-
                 pcc->spinOnCamera1();
                 cv::Mat image = pcc->imageFromLastSpin();
                 cv::Mat boxes = pcc->boxesFromLastSpin();
 
                 const pcl::PointCloud<PointType> *raw_foo = xformedCloud.get();
 
-                cv::Rect frame(0, 0, 1280, 720);
+                cv::Rect frame(0, 0, image.cols, image.rows);
 
-                pcl::PointCloud<PointType>* newCloud = new pcl::PointCloud<PointType>();
-                
-                cv::Mat points_projected = project(left_projection_matrix, frame, *raw_foo, newCloud);
+
+                // pcl::PointCloud<PointType>* visiblePoints = new pcl::PointCloud<PointType>();
+
+                cv::Mat points_projected = project(left_projection_matrix, frame, *raw_foo, nullptr);
                 cv::threshold(points_projected, points_projected, 10, 255, 0);
-                
-                
+
+
                 cv::Mat combined_rgb_laser;
                 std::vector<cv::Mat> rgb_laser_channels;
-                
-                cv:cvtColor(image, image, CV_BGR2GRAY);
+
+
+                cv::cvtColor(image, image, CV_BGR2GRAY);
 
                 rgb_laser_channels.push_back(points_projected);
-                rgb_laser_channels.push_back(cv::Mat::zeros(points_projected.size(), CV_8UC1));
+                rgb_laser_channels.push_back(Mat::zeros(image.size(),CV_8UC1));
                 rgb_laser_channels.push_back(image);
+
 
                 cv::merge(rgb_laser_channels, combined_rgb_laser);
 
                 cv::namedWindow("Display window 1", cv::WINDOW_AUTOSIZE);
                 cv::imshow("Display window 1", combined_rgb_laser);
+
+                performTransform(*boost::const_pointer_cast<pcl::PointCloud<PointType> >(xformedCloud), *boost::const_pointer_cast<pcl::PointCloud<PointType> >(xformedCloud), 0, 0, 0,  -M_PI / 2, 0, 0);
+
+                handler->setInputCloud( xformedCloud );
+                if( !viewer->updatePointCloud( xformedCloud, *handler, "cloud" ) )
+                {
+                    viewer->addPointCloud(xformedCloud, *handler, "cloud" );
+                }
             }
 
             if (((cv::waitKey(1) & 0xFF) == 113))
