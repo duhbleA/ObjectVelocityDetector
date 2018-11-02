@@ -74,23 +74,6 @@ void InitXForms()
 }
 
 
-struct mtypes
-{
-    float v4;
-    float v3;
-    float a4;
-    float a3;
-};
-
-struct xyzw
-{
-    mtypes x, y, z, w;
-};
-
-
-// Point Type
-// pcl::PointXYZ, pcl::PointXYZI, pcl::PointXYZRGBA
-
 
 void parseInitialArgs(int argc, char *argv[], std::string& ipaddress, std::string& port, std::string& pcap)
 {
@@ -157,7 +140,7 @@ int main( int argc, char *argv[] )
 {
     std::string ipaddress( "192.168.1.70" );
     std::string port( "2368" );
-    std::string pcap;
+    std::string pcap("test.pcap");
 
     parseInitialArgs(argc, argv, ipaddress, port, pcap);
 
@@ -229,8 +212,8 @@ int main( int argc, char *argv[] )
 
                 // pcl::PointCloud<PointType>* visiblePoints = new pcl::PointCloud<PointType>();
 
-                cv::Mat points_projected = project(left_projection_matrix, frame, *raw_foo, nullptr);
-                cv::threshold(points_projected, points_projected, 10, 255, 0);
+                cv::Mat points_projected = project(left_projection_matrix, frame, raw_foo, nullptr);
+                cv::threshold(points_projected, points_projected, 1, 255, 0);
 
 
                 cv::Mat combined_rgb_laser;

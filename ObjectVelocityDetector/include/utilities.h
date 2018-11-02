@@ -19,11 +19,11 @@ cv::Point project(const PointType &pt, const cv::Mat &projection_matrix)
     return cv::Point(x, y);
 }
 
-cv::Mat project(cv::Mat projection_matrix, cv::Rect frame, pcl::PointCloud<PointType> point_cloud, pcl::PointCloud<PointType> *visible_points)
+cv::Mat project(cv::Mat& projection_matrix, cv::Rect& frame, const pcl::PointCloud<PointType>* point_cloud, pcl::PointCloud<PointType> *visible_points)
 {
     cv::Mat plane = cv::Mat::zeros(frame.size(), CV_32FC1);
 
-    for (pcl::PointCloud<PointType>::iterator pt = point_cloud.points.begin(); pt < point_cloud.points.end(); pt++)
+    for (pcl::PointCloud<PointType>::const_iterator pt = point_cloud->points.begin(); pt < point_cloud->points.end(); pt++)
     {
 
         // behind the camera
@@ -53,7 +53,7 @@ cv::Mat project(cv::Mat projection_matrix, cv::Rect frame, pcl::PointCloud<Point
     return plane_gray;
 }
 
-pcl::PointCloud<pcl::PointXYZ>* toPointsXYZ(pcl::PointCloud<PointType> point_cloud)
+pcl::PointCloud<pcl::PointXYZ>* toPointsXYZ(pcl::PointCloud<PointType>& point_cloud)
 {
     pcl::PointCloud<pcl::PointXYZ> *new_cloud = new pcl::PointCloud<pcl::PointXYZ>();
     for (pcl::PointCloud<PointType>::iterator pt = point_cloud.points.begin(); pt < point_cloud.points.end(); pt++)
@@ -98,7 +98,7 @@ cv::Vec3b atf(cv::Mat rgb, cv::Point xy_f)
     return color;
   }
   
-  pcl::PointCloud<pcl::PointXYZRGB> colour(pcl::PointCloud<PointType> point_cloud, cv::Mat frame_rgb, cv::Mat P)
+  pcl::PointCloud<pcl::PointXYZRGB> colour(pcl::PointCloud<PointType>& point_cloud, cv::Mat& frame_rgb, cv::Mat& P)
 {
   pcl::PointCloud<pcl::PointXYZRGB> color_cloud;
   for (pcl::PointCloud<PointType>::iterator pt = point_cloud.begin(); pt < point_cloud.end(); pt++)
