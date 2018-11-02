@@ -75,6 +75,34 @@ void InitXForms()
 
 
 
+// Point Type
+// pcl::PointXYZ, pcl::PointXYZI, pcl::PointXYZRGBA
+
+inline float GetXYCameraAngle(const pcl::PointXYZI &point)
+{
+    return std::atan2(point.y, point.x) * Rad2Deg;
+}
+
+inline float GetXZCameraAngle(const pcl::PointXYZI &point)
+{
+    return std::atan2(point.z, point.x) * Rad2Deg;
+}
+
+inline float GetXYZDistance(const pcl::PointXYZI &point)
+{
+    return std::sqrt(point.x * point.x +
+                     point.y * point.y +
+                     point.z * point.z);
+}
+
+inline float GetXYDistance(const pcl::PointXYZI &point)
+{
+    return std::sqrt(point.x * point.x +
+                     point.y * point.y);
+}
+
+
+
 void parseInitialArgs(int argc, char *argv[], std::string& ipaddress, std::string& port, std::string& pcap)
 {
     // Command-Line Argument Parsing
@@ -140,7 +168,7 @@ int main( int argc, char *argv[] )
 {
     std::string ipaddress( "192.168.1.70" );
     std::string port( "2368" );
-    std::string pcap("test.pcap");
+    std::string pcap;
 
     parseInitialArgs(argc, argv, ipaddress, port, pcap);
 
@@ -164,6 +192,7 @@ int main( int argc, char *argv[] )
 
         /* Point Cloud Processing */
         performTransform(*ptr, *boost::const_pointer_cast<pcl::PointCloud<PointType> >(ptr), 0, 0, 0,  M_PI / 2, 0, 0);
+
         pcl::transformPointCloud(*ptr, *boost::const_pointer_cast<pcl::PointCloud<PointType> >(ptr), left_rigid_body_transformation);
 
         cloud = ptr;
@@ -209,28 +238,12 @@ int main( int argc, char *argv[] )
 
                 cv::Rect frame(0, 0, image.cols, image.rows);
 
-
                 // pcl::PointCloud<PointType>* visiblePoints = new pcl::PointCloud<PointType>();
-
-                cv::Mat points_projected = project(left_projection_matrix, frame, raw_foo, nullptr);
-                cv::threshold(points_projected, points_projected, 1, 255, 0);
-
-
-                cv::Mat combined_rgb_laser;
-                std::vector<cv::Mat> rgb_laser_channels;
-
-
-                cv::cvtColor(image, image, CV_BGR2GRAY);
-
-                rgb_laser_channels.push_back(points_projected);
-                rgb_laser_channels.push_back(Mat::zeros(image.size(),CV_8UC1));
-                rgb_laser_channels.push_back(image);
-
-
-                cv::merge(rgb_laser_channels, combined_rgb_laser);
-
+          
+                project(left_projection_matrix, frame, raw_foo, image, nullptr);
+             
                 cv::namedWindow("Display window 1", cv::WINDOW_AUTOSIZE);
-                cv::imshow("Display window 1", combined_rgb_laser);
+                cv::imshow("Display window 1", image);
 
                 performTransform(*boost::const_pointer_cast<pcl::PointCloud<PointType> >(xformedCloud), *boost::const_pointer_cast<pcl::PointCloud<PointType> >(xformedCloud), 0, 0, 0,  -M_PI / 2, 0, 0);
 

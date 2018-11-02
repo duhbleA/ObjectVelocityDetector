@@ -19,9 +19,9 @@ cv::Point project(const PointType &pt, const cv::Mat &projection_matrix)
     return cv::Point(x, y);
 }
 
-cv::Mat project(cv::Mat& projection_matrix, cv::Rect& frame, const pcl::PointCloud<PointType>* point_cloud, pcl::PointCloud<PointType> *visible_points)
+void project(cv::Mat& projection_matrix, cv::Rect& frame, const pcl::PointCloud<PointType>* point_cloud, cv::Mat& image, pcl::PointCloud<PointType> *visible_points)
 {
-    cv::Mat plane = cv::Mat::zeros(frame.size(), CV_32FC1);
+    //cv::Mat plane = cv::Mat::zeros(frame.size(), CV_32FC1);
 
     for (pcl::PointCloud<PointType>::const_iterator pt = point_cloud->points.begin(); pt < point_cloud->points.end(); pt++)
     {
@@ -41,16 +41,10 @@ cv::Mat project(cv::Mat& projection_matrix, cv::Rect& frame, const pcl::PointClo
                 visible_points->push_back(*pt);
             }
 
-            //cv::circle(plane, xy, 3, intensity, -1);
-            plane.at<float>(xy) = pt->intensity;
+          // TODO Create a heat map based on distance
+           image.at<cv::Vec3b>(xy) = cv::Vec3b(0, 155, 255);
         }
     }
-
-    cv::Mat plane_gray;
-    cv::normalize(plane, plane_gray, 0, 255, cv::NORM_MINMAX, CV_8UC1);
-    cv::dilate(plane_gray, plane_gray, cv::Mat());
-
-    return plane_gray;
 }
 
 pcl::PointCloud<pcl::PointXYZ>* toPointsXYZ(pcl::PointCloud<PointType>& point_cloud)
