@@ -136,7 +136,7 @@ int main( int argc, char *argv[] )
 {
     std::string ipaddress( "192.168.1.70" );
     std::string port( "2368" );
-    std::string pcap;
+    std::string pcap("lidar_packets.pcap");
 
     parseInitialArgs(argc, argv, ipaddress, port, pcap);
 
@@ -186,6 +186,11 @@ int main( int argc, char *argv[] )
     grabber->start();
     
     pcl::PointCloud<PointType>* visiblePoints = new pcl::PointCloud<PointType>();
+    
+    cv::Mat image;
+    cv::Mat boxes;
+    
+    cv::Rect frame;
 
     // The loop where the magic happens
     while( !viewer->wasStopped() )
@@ -201,12 +206,12 @@ int main( int argc, char *argv[] )
                 xformedCloud = cloud;
 
                 pcc->spinOnCamera1();
-                cv::Mat image = pcc->imageFromLastSpin();
-                cv::Mat boxes = pcc->boxesFromLastSpin();
+                image = pcc->imageFromLastSpin();
+                boxes = pcc->boxesFromLastSpin();
 
                 const pcl::PointCloud<PointType> *raw_foo = xformedCloud.get();
 
-                cv::Rect frame(0, 0, image.cols, image.rows);
+                frame = cv::Rect(0, 0, image.cols, image.rows);
           
                 project(left_projection_matrix, frame, raw_foo, image, visiblePoints);
              
