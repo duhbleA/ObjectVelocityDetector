@@ -35,37 +35,54 @@ cv::Vec3b generateHeatMap(float minDistance, float interval, const PointType& po
 {
     float distance = std::sqrt(point.x*point.x + point.y*point.y + point.z*point.z);
 
-    if ((distance >= minDistance) && (distance <= (minDistance + interval)))
+    float minRange = minDistance;
+    float maxRange = minDistance + interval;
+    
+    if ((distance >= minRange) && (distance <= maxRange))
     {
         return cv::Vec3b(0, 0, 255);
     }
-    else if ((distance > (minDistance + interval)) && (distance <= (minDistance + 2*interval)))
+    
+    minRange = maxRange;
+    maxRange = maxRange + interval;
+    if ((distance > minRange) && (distance <= maxRange))
     {
         return cv::Vec3b(0, 128, 255);
     }
-    else if ((distance > (minDistance + 2*interval)) && (distance <= (minDistance + 3*interval)))
+    
+    minRange = maxRange;
+    maxRange = maxRange + interval;
+    if ((distance > minRange) && (distance <= maxRange))
     {
         return cv::Vec3b(0, 255, 255);
     }
-    else if ((distance > (minDistance + 3*interval)) && (distance <= (minDistance + 4*interval)))
+    
+    minRange = maxRange;
+    maxRange = maxRange + interval;
+    if ((distance > minRange) && (distance <= maxRange))
     {
         return cv::Vec3b(0, 255, 0);
     }
-    else if ((distance > (minDistance + 4*interval)) && (distance <= (minDistance + 5*interval)))
+    
+    minRange = maxRange;
+    maxRange = maxRange + interval;
+    if ((distance > minRange) && (distance <= maxRange))
     {
         return cv::Vec3b(255, 0, 0);
     }
-    else if ((distance > (minDistance + 5*interval)) && (distance <= (minDistance + 6*interval)))
+    
+    minRange = maxRange;
+    maxRange = maxRange + interval;
+    if ((distance > minRange) && (distance <= maxRange))
     {
         return cv::Vec3b(255, 102, 102);
     }
-    else if ((distance > (minDistance + 6*interval)) && (distance <= (minDistance + 7*interval)))
+    
+    minRange = maxRange;
+    maxRange = maxRange + interval;
+    if ((distance > minRange) && (distance <= maxRange))
     {
         return cv::Vec3b(255, 204, 204);
-    }
-    else
-    {
-        return cv::Vec3b(255, 255, 255);
     }
     
     return cv::Vec3b(255, 255, 255);
