@@ -1,9 +1,7 @@
-# ifndef __COVERSION_OPENCV_H__
-# define __COVERSION_OPENCV_H__
+#ifndef __COVERSION_H__
+#define __COVERSION_H__
 
 #include "Python.h"
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/core.hpp>
 #include "numpy/ndarrayobject.h"
 
@@ -60,4 +58,4 @@ public:
     PyObject* toNDArray(const cv::Mat& mat);
 };
 
-# endif
+#endif

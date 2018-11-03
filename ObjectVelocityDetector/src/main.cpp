@@ -1,33 +1,30 @@
+#include "../include/pclutils.h"
+#include "../include/mathutils.h"
+#include "../include/pythoncodecontroller.h"
+
 #include <iostream>
 #include <string>
-#include <thread>
 #include <vector>
+#include <chrono>
 
 #include <Eigen/Dense>
 #include <Eigen/SVD>
 #include <Eigen/Geometry>
 #include <unsupported/Eigen/MatrixFunctions>
-#include <pcl/common/eigen.h>
-#include <pcl/common/transforms.h>
-#include "../include/pythoncodecontroller.h"
 
-#include <math.h>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
+
 #include <pcl/io/vlp_grabber.h>
 #include <pcl/console/parse.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
-#include "../include/utilities.h"
-
-#include <chrono>
 
 using namespace cv;
 using namespace Eigen;
 using namespace std;
 
-constexpr float Rad2Deg = 180.0 / M_PI;
 
 Matrix4f left_rigid_body_transformation;
 Matrix4f right_rigid_body_transformation;
@@ -72,35 +69,6 @@ void InitXForms()
 
     cv::Mat(3, 4, CV_32FC1, &left_raw_projection).copyTo(left_projection_matrix);
 }
-
-
-
-// Point Type
-// pcl::PointXYZ, pcl::PointXYZI, pcl::PointXYZRGBA
-
-inline float GetXYCameraAngle(const pcl::PointXYZI &point)
-{
-    return std::atan2(point.y, point.x) * Rad2Deg;
-}
-
-inline float GetXZCameraAngle(const pcl::PointXYZI &point)
-{
-    return std::atan2(point.z, point.x) * Rad2Deg;
-}
-
-inline float GetXYZDistance(const pcl::PointXYZI &point)
-{
-    return std::sqrt(point.x * point.x +
-                     point.y * point.y +
-                     point.z * point.z);
-}
-
-inline float GetXYDistance(const pcl::PointXYZI &point)
-{
-    return std::sqrt(point.x * point.x +
-                     point.y * point.y);
-}
-
 
 
 void parseInitialArgs(int argc, char *argv[], std::string& ipaddress, std::string& port, std::string& pcap)
@@ -216,6 +184,8 @@ int main( int argc, char *argv[] )
 
     // Start Grabber
     grabber->start();
+    
+    pcl::PointCloud<PointType>* visiblePoints = new pcl::PointCloud<PointType>();
 
     // The loop where the magic happens
     while( !viewer->wasStopped() )
@@ -237,10 +207,8 @@ int main( int argc, char *argv[] )
                 const pcl::PointCloud<PointType> *raw_foo = xformedCloud.get();
 
                 cv::Rect frame(0, 0, image.cols, image.rows);
-
-                // pcl::PointCloud<PointType>* visiblePoints = new pcl::PointCloud<PointType>();
           
-                project(left_projection_matrix, frame, raw_foo, image, nullptr);
+                project(left_projection_matrix, frame, raw_foo, image, visiblePoints);
              
                 cv::namedWindow("Display window 1", cv::WINDOW_AUTOSIZE);
                 cv::imshow("Display window 1", image);
