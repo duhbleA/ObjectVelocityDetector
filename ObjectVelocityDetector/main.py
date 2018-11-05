@@ -1,6 +1,7 @@
 import tensorflow as tf
 from utils import graph_utils, visualization_utils
 from constants import constants
+from object_detection.utils import visualization_utils as vis_util
 
 if constants.USE_BUILTIN_WEBCAM == False:
     from utils import camera_utils
@@ -48,7 +49,9 @@ def start():
 
         # Initialize the PyCapture capture
         camera_1 = camera_utils.initialize_camera(0)
-        camera_2 = camera_utils.initialize_camera(1)
+        
+        if constants.NUMBER_OF_CAMERAS > 1:
+            camera_2 = camera_utils.initialize_camera(1)
     else:
         camera_1 = cv2.VideoCapture(0)
 
@@ -61,7 +64,9 @@ def stop():
     """
     if constants.USE_BUILTIN_WEBCAM == False:
         camera_1.stopCapture()
-        camera_2.stopCapture()
+        
+        if constants.NUMBER_OF_CAMERAS > 1:
+            camera_2.stopCapture()
 
 
 def execute_session(camera_id):
@@ -76,9 +81,9 @@ def execute_session(camera_id):
 
     image = None
     if constants.USE_BUILTIN_WEBCAM == False:
-        if camera_id == "1":
+        if camera_id == "0":
             image = camera_1.retrieveBuffer()
-        elif camera_id == "0":
+        elif camera_id == "1":
             image = camera_2.retrieveBuffer()
     else:
         ret, image = camera_1.read()
@@ -108,15 +113,18 @@ def execute_session(camera_id):
             [boxes, scores, classes, num_detections],
             feed_dict={image_tensor: image_np_expanded})
 
-        # Display live output if the constants boolean was set
-        if constants.DISPLAY_LIVE_OUTPUT:
-            # Visualize output in CV 2 window
-            visualization_utils.visualize_output(cv2, image_np, boxes, classes, scores, category_index, camera_id)
-
         global to_c_boxes
         to_c_boxes = remove_none_detections(boxes)
 
         global to_c_image
+        vis_util.visualize_boxes_and_labels_on_image_array(
+            image_np,
+            np.squeeze(boxes),
+            np.squeeze(classes).astype(np.int32),
+            np.squeeze(scores),
+            category_index,
+            use_normalized_coordinates=True,
+            line_thickness=8)
         to_c_image = image_np
 
         time2 = time.time()

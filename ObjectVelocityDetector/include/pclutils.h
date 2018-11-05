@@ -9,11 +9,32 @@
 
 #include <opencv2/core/core.hpp>
 
+#include <vector>
+
 #include "../include/mathutils.h"
 
 typedef pcl::PointXYZI PointType;
 
-cv::Point project(const PointType &pt, const cv::Mat &projection_matrix)
+
+
+
+
+void GetMinMaxPoints(const std::vector<PointType> &visible_points, float &min, float &max)
+{
+    max = 0;
+    min = 1000000.0;
+    float distance = 0;
+    for(const PointType &point : visible_points)
+    {
+        distance = GetXYZDistance(point);
+        if(distance > max)
+            max = distance;
+        if(distance < min)
+            min = distance;
+    }
+}
+
+cv::Point2f project(const PointType &pt, const cv::Mat &projection_matrix)
 {
     //cv::Point2f xy = projectf(pt, projection_matrix);
     cv::Mat pt_3D(4, 1, CV_32FC1);
@@ -28,7 +49,7 @@ cv::Point project(const PointType &pt, const cv::Mat &projection_matrix)
     float w = pt_2D.at<float>(2);
     float x = pt_2D.at<float>(0) / w;
     float y = pt_2D.at<float>(1) / w;
-    return cv::Point(x, y);
+    return cv::Point2f(x, y);
 }
 
 cv::Vec3b generateHeatMap(float minDistance, float interval, const PointType& point)
@@ -88,52 +109,110 @@ cv::Vec3b generateHeatMap(float minDistance, float interval, const PointType& po
     return cv::Vec3b(255, 255, 255);
 }
 
-void project(cv::Mat& projection_matrix, cv::Rect& frame, const pcl::PointCloud<PointType>* point_cloud, cv::Mat& image, pcl::PointCloud<PointType> *visible_points)
+void project(cv::Mat& projection_matrix, cv::Rect& frame, cv::Mat& image, const std::vector<PointType> &visible_points, float min, float max)
 {
     //cv::Mat plane = cv::Mat::zeros(frame.size(), CV_32FC1);
 
-
-    for (pcl::PointCloud<PointType>::const_iterator pt = point_cloud->points.begin(); pt < point_cloud->points.end(); pt++)
+    if (visible_points.size() != 0)
     {
 
+        float interval = (max - min) / 7.0f;
+
+        for (const PointType &pt : visible_points)
+        {
+            cv::Point2f xy = project(pt, projection_matrix);
+            
+            
+            image.at<cv::Vec3b>(xy) = generateHeatMap(min, interval, pt);
+        }
+    }
+}
+
+void FilterBoundingBox(const std::vector<PointType> &visiblePoints, const cv::Mat& projection_matrix, cv::Mat boundingBoxes, std::vector<PointType> &BoundPoints, float DistanceThreshold = -1.0)
+{
+    float x1, x2, y1, y2;
+
+    if(boundingBoxes.rows == 0)
+    {
+        return;
+    }
+    if(boundingBoxes.cols == 0)
+    {
+        return;
+    }
+
+
+    for(const PointType &point : visiblePoints)
+    {
+        bool rendered = false;
+        cv::Point2f xy = project(point, projection_matrix);
+        for(int i = 0; i < boundingBoxes.rows && !rendered; i ++)
+        {
+            const auto &box = boundingBoxes.row(i);
+
+            if(box.cols == 4)
+            {
+                if(!box.col(0).empty() && !box.col(1).empty() && !box.col(2).empty() && !box.col(3).empty())
+                {
+                    y1 = box.col(0).at<float>();
+                    x1 = box.col(1).at<float>();
+                    y2 = box.col(2).at<float>();
+                    x2 = box.col(3).at<float>();
+
+                    if(xy.inside(cv::Rect_<float>(cv::Point2f(x2, y2),
+                                                  cv::Point2f(x1, y1))))
+                    {
+                        if(DistanceThreshold > 0.0)
+                        {
+                            if(GetXYZDistance(point) < DistanceThreshold)
+                            {
+                                BoundPoints.push_back(point);
+                                rendered = true;
+                            }
+                        }
+                        else
+                        {
+                            BoundPoints.push_back(point);
+                            rendered = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+}
+
+void TrimPoints(const pcl::PointCloud<PointType>::ConstPtr cloud, cv::Rect &frame, const cv::Mat& projection_matrix, std::vector<PointType> &visible_points,
+                float &min, float &max)
+{     
+    max = 0.0f;
+    min = 1000000000.0f;
+    float distance = 0.0;
+
+    for (const PointType &pt : *cloud)
+    {
+        bool rendered = false;
         // behind the camera
-        if (pt->z < 0)
+        if (pt.z < 0)
         {
             continue;
         }
 
         //float intensity = pt->intensity;
-        cv::Point xy = project(*pt, projection_matrix);
+
+        cv::Point2f xy = project(pt, projection_matrix);
         if (xy.inside(frame))
         {
-            if (visible_points != NULL)
-            {
-                visible_points->push_back(*pt);
-            }
+            visible_points.push_back(pt);
+
+            distance = GetXYZDistance(pt);
+            if(max < distance)
+                max = distance;
+            if(min > distance)
+                min = distance;
         }
-    }
 
-    if (visible_points != NULL)
-    {
-        PointType minPt;
-        PointType maxPt;
-        pcl::getMinMax3D(*visible_points, minPt, maxPt);
-
-        float alpha = GetXYZDistance(minPt);
-        float beta = GetXYZDistance(maxPt);
-        
-        float minDistance = (alpha < beta) ? alpha : beta;
-        float maxDistance = (alpha > beta) ? alpha : beta;
-        
-        float interval = (maxDistance - minDistance) / 7.0f;
-
-        for (pcl::PointCloud<PointType>::iterator pt = visible_points->points.begin(); pt < visible_points->points.end(); pt++)
-        {
-            cv::Point xy = project(*pt, projection_matrix);
-            
-            
-            image.at<cv::Vec3b>(xy) = generateHeatMap(minDistance, interval, *pt);
-        }
     }
 }
 

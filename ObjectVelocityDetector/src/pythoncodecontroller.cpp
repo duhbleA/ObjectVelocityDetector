@@ -39,6 +39,7 @@ PythonCodeController::PythonCodeController()
     }
     else
     {
+        std::cout << "Main is ded" << std::endl;
         throw("main.py could not be found. Be sure to run the program from the same directory as main.py");
     }
 }

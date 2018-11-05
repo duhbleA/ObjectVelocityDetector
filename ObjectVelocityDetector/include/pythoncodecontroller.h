@@ -1,6 +1,8 @@
 #ifndef PYTHONCODECONTROLLER_H
 #define PYTHONCODECONTROLLER_H
 
+#include <iostream>
+
 #include "Python.h"
 #include "numpy/ndarrayobject.h"
 #include "../include/conversion.h"
