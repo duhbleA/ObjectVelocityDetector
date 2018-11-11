@@ -17,15 +17,21 @@ inline float GetXZCameraAngle(const pcl::PointXYZI &point)
 
 inline float GetXYZDistance(const pcl::PointXYZI &point)
 {
-    return std::sqrt(point.x * point.x +
-                     point.y * point.y +
-                     point.z * point.z);
+    return std::sqrt((point.x * point.x) +
+                     (point.y * point.y) +
+                     (point.z * point.z));
 }
 
 inline float GetXYDistance(const pcl::PointXYZI &point)
 {
     return std::sqrt(point.x * point.x +
                      point.y * point.y);
+}
+
+inline float GetXZDIstance(const pcl::PointXYZI &point)
+{
+    return std::sqrt(point.x * point.x +
+                     point.z * point.z);
 }
 
 #endif

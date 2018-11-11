@@ -71,7 +71,7 @@ void InitXForms()
 //                                     0.0,           740.674438f,    280.441036f,    0.0,
 //                                     0.0,           0.0,            1.0f,           0.0
 //                                    };
-        /// adjusting to the 1280x720 view
+    /// adjusting to the 1280x720 view
     float left_raw_projection[12] = {1182.129700f,  0.0,            750.634114f,    0.0,
                                      0.0,           1380.674438f,   350.441036f,    0.0,
                                      0.0,           0.0,            1.0f,           0.0
@@ -189,7 +189,7 @@ int main( int argc, char *argv[] )
 //    initializePCLViewer(viewer, handler);
     initializePCLHandler(handler);
 
-    
+
     cv::Rect frame;
     cv::Mat boxes;
 
@@ -199,7 +199,7 @@ int main( int argc, char *argv[] )
     std::vector<PointType> visiblePoints;
 
 
-    
+
     boost::function<void( const pcl::PointCloud<PointType>::ConstPtr& )> function =
     [ &cloud, &mutex, &frame, &visiblePoints, &boxes ]( const pcl::PointCloud<PointType>::ConstPtr& ptr ) {
         boost::mutex::scoped_lock lock( mutex );
@@ -208,11 +208,11 @@ int main( int argc, char *argv[] )
         performTransform(*ptr, *boost::const_pointer_cast<pcl::PointCloud<PointType> >(ptr), 0, 0, 0,  M_PI / 2, 0, 0);
 
         pcl::transformPointCloud(*ptr, *boost::const_pointer_cast<pcl::PointCloud<PointType> >(ptr), left_rigid_body_transformation);
-        
+
         std::vector<PointType> tmpPoints;
         bool RenderBoxes = true;
         visiblePoints.clear();
-        
+
         if(RenderBoxes)
         {
             TrimPoints(ptr, frame, left_projection_matrix, tmpPoints, min_point, max_point);
@@ -253,15 +253,15 @@ int main( int argc, char *argv[] )
     }
     std::cout << "Starting python instance\n";
     pcc->start();
-    
+
     std::cout << "Python started" << std::endl;
 
     // Start Grabber
     grabber->start();
-    
+
 
     cv::Mat image;
-    
+
 
     // The loop where the magic happens
     while( 1 )
@@ -282,14 +282,10 @@ int main( int argc, char *argv[] )
                 image = pcc->imageFromLastSpin();
                 boxes = pcc->boxesFromLastSpin();
 
-
-//                const pcl::PointCloud<PointType> *raw_foo = xformedCloud.get();
-
                 frame = cv::Rect(0, 0, image.cols, image.rows);
-          
-                //pcl::PointCloud<PointType>* visiblePoints = new pcl::PointCloud<PointType>();
+
                 project(left_projection_matrix, frame, image, visiblePoints, min_point, max_point);
-             
+
                 cv::namedWindow("Display window 1", cv::WINDOW_AUTOSIZE);
                 cv::imshow("Display window 1", image);
 
