@@ -128,7 +128,7 @@ def execute_session(camera_id):
         to_c_image = image_np
 
         time2 = time.time()
-        print("Camera #" + camera_id + " process time: " + str(time2 - time1))
+        #Sprint("Camera #" + camera_id + " process time: " + str(time2 - time1))
 
 
 def get_image():

@@ -159,11 +159,11 @@ void initializePCLViewer(boost::shared_ptr<pcl::visualization::PCLVisualizer>& v
 void initializeGrabber(boost::shared_ptr<pcl::VLPGrabber>& grabber, std::string& ipaddress, std::string& port, std::string& pcap)
 {
     if( !pcap.empty() ) {
-        std::cout << "Capture from PCAP..." << std::endl;
+        std::cout << "Capturing from PCAP..." << std::endl;
         grabber = boost::shared_ptr<pcl::VLPGrabber>( new pcl::VLPGrabber( pcap ) );
     }
     else if( !ipaddress.empty() && !port.empty() ) {
-        std::cout << "Capture from Sensor..." << std::endl;
+        std::cout << "Capturing from VLP-16..." << std::endl;
         grabber = boost::shared_ptr<pcl::VLPGrabber>( new pcl::VLPGrabber( boost::asio::ip::address::from_string( ipaddress ), boost::lexical_cast<unsigned short>( port ) ) );
     }
 
@@ -197,11 +197,14 @@ int main( int argc, char *argv[] )
     // Retrieved Point Cloud Callback Function
     boost::mutex mutex;
     std::vector<PointType> visiblePoints;
+    
+    std::vector<Sample> allSamples;
+    std::vector<Sample> samplesToRender;
 
 
 
     boost::function<void( const pcl::PointCloud<PointType>::ConstPtr& )> function =
-    [ &cloud, &mutex, &frame, &visiblePoints, &boxes ]( const pcl::PointCloud<PointType>::ConstPtr& ptr ) {
+    [ &cloud, &mutex, &frame, &visiblePoints, &boxes, &allSamples, &samplesToRender ]( const pcl::PointCloud<PointType>::ConstPtr& ptr ) {
         boost::mutex::scoped_lock lock( mutex );
 
         /* Point Cloud Processing */
@@ -212,11 +215,12 @@ int main( int argc, char *argv[] )
         std::vector<PointType> tmpPoints;
         bool RenderBoxes = true;
         visiblePoints.clear();
+        samplesToRender.clear();
 
         if(RenderBoxes)
         {
             TrimPoints(ptr, frame, left_projection_matrix, tmpPoints, min_point, max_point);
-            FilterBoundingBox(tmpPoints, left_projection_matrix, boxes, visiblePoints);
+            FilterBoundingBox(tmpPoints, left_projection_matrix, boxes, visiblePoints, -1.0, allSamples, samplesToRender);
         }
         else
         {
@@ -241,7 +245,6 @@ int main( int argc, char *argv[] )
     // Initialize Python script controllers
     std::cout << "Initializing python" << std::endl;
     Py_Initialize();
-    std::cout << "Initializing python" << std::endl;
     PythonCodeController* pcc;
     try
     {
@@ -251,10 +254,10 @@ int main( int argc, char *argv[] )
     {
         std::cout << e.what() << std::endl;
     }
-    std::cout << "Starting python instance\n";
+    std::cout << "Starting camera drivers" << std::endl;
     pcc->start();
 
-    std::cout << "Python started" << std::endl;
+    std::cout << "Camera drivers started" << std::endl;
 
     // Start Grabber
     grabber->start();
@@ -285,9 +288,24 @@ int main( int argc, char *argv[] )
                 frame = cv::Rect(0, 0, image.cols, image.rows);
 
                 project(left_projection_matrix, frame, image, visiblePoints, min_point, max_point);
+                
+                std::cout << "___Object Velocities (m/s)___" << std::endl;
+                for (Sample &sample : samplesToRender)
+                {
+                    std::cout << std::to_string(sample.velocity) << std::endl;
+                    cv::putText(image, std::to_string(sample.velocity) + " m/s", sample.boundingBox.br(), cv::FONT_HERSHEY_PLAIN, 1,  Scalar(0,0,255,255), 2);
+                }
 
                 cv::namedWindow("Display window 1", cv::WINDOW_AUTOSIZE);
                 cv::imshow("Display window 1", image);
+                
+                
+                for (Sample &sample : allSamples)
+                {
+                    sample.framesSinceLastSeen += 1;
+                }
+                
+                allSamples.erase(std::remove_if(allSamples.begin(), allSamples.end(), [](const Sample & sample) { return sample.framesSinceLastSeen > 10;}), allSamples.end());
 
 //                performTransform(*boost::const_pointer_cast<pcl::PointCloud<PointType> >(xformedCloud), *boost::const_pointer_cast<pcl::PointCloud<PointType> >(xformedCloud), 0, 0, 0,  -M_PI / 2, 0, 0);
 

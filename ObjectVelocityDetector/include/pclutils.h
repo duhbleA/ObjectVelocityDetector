@@ -10,13 +10,23 @@
 #include <opencv2/core/core.hpp>
 
 #include <vector>
-
+#include <chrono>
 #include "../include/mathutils.h"
 
 typedef pcl::PointXYZI PointType;
 
 
+struct Sample
+{
+    cv::Rect boundingBox;
+    float objectDistance;
+    int pointsInside;
+    int64_t sampleTime;
+    double velocity;
+    bool isVisible;
+    int framesSinceLastSeen;
 
+};
 
 
 void GetMinMaxPoints(const std::vector<PointType> &visible_points, float &min, float &max)
@@ -58,54 +68,54 @@ cv::Vec3b generateHeatMap(float minDistance, float interval, const PointType& po
 
     float minRange = minDistance;
     float maxRange = minDistance + interval;
-    
+
     if ((distance >= minRange) && (distance <= maxRange))
     {
         return cv::Vec3b(0, 0, 255);
     }
-    
+
     minRange = maxRange;
     maxRange = maxRange + interval;
     if ((distance > minRange) && (distance <= maxRange))
     {
         return cv::Vec3b(0, 128, 255);
     }
-    
+
     minRange = maxRange;
     maxRange = maxRange + interval;
     if ((distance > minRange) && (distance <= maxRange))
     {
         return cv::Vec3b(0, 255, 255);
     }
-    
+
     minRange = maxRange;
     maxRange = maxRange + interval;
     if ((distance > minRange) && (distance <= maxRange))
     {
         return cv::Vec3b(0, 255, 0);
     }
-    
+
     minRange = maxRange;
     maxRange = maxRange + interval;
     if ((distance > minRange) && (distance <= maxRange))
     {
         return cv::Vec3b(255, 0, 0);
     }
-    
+
     minRange = maxRange;
     maxRange = maxRange + interval;
     if ((distance > minRange) && (distance <= maxRange))
     {
         return cv::Vec3b(255, 102, 102);
     }
-    
+
     minRange = maxRange;
     maxRange = maxRange + interval;
     if ((distance > minRange) && (distance <= maxRange))
     {
         return cv::Vec3b(255, 204, 204);
     }
-    
+
     return cv::Vec3b(255, 255, 255);
 }
 
@@ -121,14 +131,15 @@ void project(cv::Mat& projection_matrix, cv::Rect& frame, cv::Mat& image, const 
         for (const PointType &pt : visible_points)
         {
             cv::Point2f xy = project(pt, projection_matrix);
-            
-            
+
+
             image.at<cv::Vec3b>(xy) = generateHeatMap(min, interval, pt);
         }
     }
 }
 
-void FilterBoundingBox(const std::vector<PointType> &visiblePoints, const cv::Mat& projection_matrix, cv::Mat boundingBoxes, std::vector<PointType> &BoundPoints, float DistanceThreshold = -1.0)
+void FilterBoundingBox(const std::vector<PointType> &visiblePoints, const cv::Mat& projection_matrix, cv::Mat boundingBoxes, std::vector<PointType> &BoundPoints, float DistanceThreshold,
+                       std::vector<Sample> &samples, std::vector<Sample> &samplesToRender)
 {
     float x1, x2, y1, y2;
 
@@ -141,51 +152,105 @@ void FilterBoundingBox(const std::vector<PointType> &visiblePoints, const cv::Ma
         return;
     }
 
-
-    for(const PointType &point : visiblePoints)
+    std::vector<Sample> workingSamples;
+    for(int i = 0; i < boundingBoxes.rows; i ++)
     {
-        bool rendered = false;
-        cv::Point2f xy = project(point, projection_matrix);
-        for(int i = 0; i < boundingBoxes.rows && !rendered; i ++)
+        const auto &box = boundingBoxes.row(i);
+
+        if(box.cols == 4)
         {
-            const auto &box = boundingBoxes.row(i);
-
-            if(box.cols == 4)
+            if(!box.col(0).empty() && !box.col(1).empty() && !box.col(2).empty() && !box.col(3).empty())
             {
-                if(!box.col(0).empty() && !box.col(1).empty() && !box.col(2).empty() && !box.col(3).empty())
-                {
-                    y1 = box.col(0).at<float>();
-                    x1 = box.col(1).at<float>();
-                    y2 = box.col(2).at<float>();
-                    x2 = box.col(3).at<float>();
+                y1 = box.col(0).at<float>();
+                x1 = box.col(1).at<float>();
+                y2 = box.col(2).at<float>();
+                x2 = box.col(3).at<float>();
 
-                    if(xy.inside(cv::Rect_<float>(cv::Point2f(x2, y2),
-                                                  cv::Point2f(x1, y1))))
+                cv::Rect_<float> bound_box_rect = cv::Rect_<float>(cv::Point2f(x2, y2), cv::Point2f(x1, y1));
+
+                Sample boundingBoxSample;
+                boundingBoxSample.boundingBox = bound_box_rect;
+                boundingBoxSample.sampleTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+                boundingBoxSample.objectDistance = 0.0f;
+                boundingBoxSample.pointsInside = 0;
+                boundingBoxSample.velocity = 0.0;
+                boundingBoxSample.isVisible = false;
+                boundingBoxSample.framesSinceLastSeen = 0;
+
+                for (const PointType &point : visiblePoints)
+                {
+                    cv::Point2f xy = project(point, projection_matrix);
+                    if(xy.inside(bound_box_rect))
                     {
+                        float distance = GetXYZDistance(point);
                         if(DistanceThreshold > 0.0)
                         {
-                            if(GetXYZDistance(point) < DistanceThreshold)
+                            if(distance < DistanceThreshold)
                             {
                                 BoundPoints.push_back(point);
-                                rendered = true;
+                                boundingBoxSample.pointsInside += 1;
                             }
                         }
                         else
                         {
                             BoundPoints.push_back(point);
-                            rendered = true;
+                            boundingBoxSample.pointsInside += 1;
                         }
+
+                        boundingBoxSample.objectDistance += distance;
                     }
+                }
+                workingSamples.push_back(boundingBoxSample);
+            }
+        }
+
+    }
+
+    std::vector<Sample> visibleSamples;
+    for (Sample &newSample : workingSamples)
+    {
+        newSample.objectDistance = newSample.objectDistance / (float) newSample.pointsInside;
+
+        int indexToReplace = -1;
+        for (int i = 0; i < samples.size(); i++)
+        {
+            Sample oldSample = samples[i];
+
+            float areaRatio = (float) newSample.boundingBox.area() / (float) oldSample.boundingBox.area();
+
+            if (areaRatio >= 0.80f && areaRatio <= 1.2f)
+            {
+                if ((newSample.boundingBox & oldSample.boundingBox).area() > 0)
+                {
+                    newSample.velocity = (double) (newSample.objectDistance - oldSample.objectDistance) / (double) ((newSample.sampleTime - oldSample.sampleTime) / 1000.0);
+                    indexToReplace = i;
+                    newSample.isVisible = true;
+                    break;
                 }
             }
         }
+        if (indexToReplace != -1)
+        {
+            samples[indexToReplace] = newSample;
+            visibleSamples.push_back(newSample);
+        }
+        else
+        {
+            newSample.isVisible = true;
+            visibleSamples.push_back(newSample);
+            samples.push_back(newSample);
+        }
     }
 
+    for (Sample &sample : visibleSamples)
+    {
+        samplesToRender.push_back(sample);
+    }
 }
 
 void TrimPoints(const pcl::PointCloud<PointType>::ConstPtr cloud, cv::Rect &frame, const cv::Mat& projection_matrix, std::vector<PointType> &visible_points,
                 float &min, float &max)
-{     
+{
     max = 0.0f;
     min = 1000000000.0f;
     float distance = 0.0;
