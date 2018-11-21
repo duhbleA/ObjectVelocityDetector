@@ -20,6 +20,7 @@
 #include <pcl/io/vlp_grabber.h>
 #include <pcl/console/parse.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <mutex>
 
 
 using namespace cv;
@@ -33,6 +34,33 @@ Matrix4f right_rigid_body_transformation;
 cv::Mat left_projection_matrix;
 
 float min_point, max_point;
+
+// Point Clouds initialization
+pcl::PointCloud<PointType>::ConstPtr cloud(new pcl::PointCloud<PointType>);
+pcl::PointCloud<PointType>::ConstPtr modifiedCloud(new pcl::PointCloud<PointType>);
+
+
+cv::Rect frame;
+cv::Mat boxes;
+
+
+// Retrieved Point Cloud Callback Function
+std::mutex sys_mutex;
+std::vector<PointType> visiblePoints;
+
+std::vector<Sample> allSamples;
+std::vector<Sample> samplesToRender;
+
+PythonCodeController* pcc;
+
+
+cv::Mat image;
+
+bool ready = false;
+bool running = true;
+
+
+
 
 void InitXForms()
 {
@@ -169,6 +197,80 @@ void initializeGrabber(boost::shared_ptr<pcl::VLPGrabber>& grabber, std::string&
 
 }
 
+
+void Function()
+{
+    while(running)
+    {   
+        ready = false;
+        if(sys_mutex.try_lock())
+        {
+            boost::const_pointer_cast<pcl::PointCloud<PointType>>(modifiedCloud)->points.clear();
+            for(const PointType &point : cloud->points)
+            {
+                boost::const_pointer_cast<pcl::PointCloud<PointType>>(modifiedCloud)->push_back(point);
+            }
+
+            sys_mutex.unlock();
+            ready = true;
+        }
+
+        if (ready)
+        {
+            std::vector<PointType> tmpPoints;
+            bool RenderBoxes = true;
+            visiblePoints.clear();
+            samplesToRender.clear();
+
+
+            if (modifiedCloud)
+            {
+                if(RenderBoxes)
+                {
+                    TrimPoints(modifiedCloud, frame, left_projection_matrix, tmpPoints, min_point, max_point);
+                    FilterBoundingBox(tmpPoints, left_projection_matrix, boxes, visiblePoints, -1.0, allSamples, samplesToRender);
+                }
+                else
+                {
+                    TrimPoints(modifiedCloud, frame, left_projection_matrix, visiblePoints, min_point, max_point);
+                }
+
+                pcc->spinOnCamera1();
+                image = pcc->imageFromLastSpin();
+                boxes = pcc->boxesFromLastSpin();
+
+                frame = cv::Rect(0, 0, image.cols, image.rows);
+
+                project(left_projection_matrix, frame, image, visiblePoints, min_point, max_point);
+
+                std::cout << "___Object Velocities (m/s)___" << std::endl;
+                int i = 0;
+                for (Sample &sample : samplesToRender)
+                {
+                    std::cout << "Object: " << i++ << "\n";
+                    std::cout << "\tCount: " << std::to_string(sample.pointsInside) << "\n";
+                    std::cout << "\tRunning: " << std::to_string(sample.runningDistance) << "\n";
+                    std::cout << "\tStd_Dev: " << std::to_string(sample.std_dev) << "\n";
+                    std::cout << "\t" << std::to_string(sample.velocity) << std::endl;
+                    cv::putText(image, std::to_string(sample.velocity) + " m/s", sample.boundingBox.br(), cv::FONT_HERSHEY_PLAIN, 1,  Scalar(0,0,255,255), 2);
+                }
+
+                cv::namedWindow("Display window 1", cv::WINDOW_AUTOSIZE);
+                cv::imshow("Display window 1", image);
+
+
+                for (Sample &sample : allSamples)
+                {
+                    sample.framesSinceLastSeen += 1;
+                }
+
+                allSamples.erase(std::remove_if(allSamples.begin(), allSamples.end(), [](const Sample & sample) { return sample.framesSinceLastSeen > 10;}), allSamples.end());
+
+            }
+        }
+    }
+}
+
 int main( int argc, char *argv[] )
 {
     std::string ipaddress( "192.168.1.70" );
@@ -177,59 +279,19 @@ int main( int argc, char *argv[] )
 
     parseInitialArgs(argc, argv, ipaddress, port, pcap);
 
-    // Point Clouds initialization
-    pcl::PointCloud<PointType>::ConstPtr cloud(new pcl::PointCloud<PointType>);
-//    pcl::PointCloud<PointType>::ConstPtr xformedCloud = cloud;
-
-
-    // Point Cloud Color Handler and viewer initialization
-    pcl::visualization::PointCloudColorHandler<PointType>::Ptr handler;
-//    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer( new pcl::visualization::PCLVisualizer( "Velodyne Viewer" ) );
-
-//    initializePCLViewer(viewer, handler);
-    initializePCLHandler(handler);
-
-
-    cv::Rect frame;
-    cv::Mat boxes;
-
-
-    // Retrieved Point Cloud Callback Function
-    boost::mutex mutex;
-    std::vector<PointType> visiblePoints;
-    
-    std::vector<Sample> allSamples;
-    std::vector<Sample> samplesToRender;
-
-
-
     boost::function<void( const pcl::PointCloud<PointType>::ConstPtr& )> function =
-    [ &cloud, &mutex, &frame, &visiblePoints, &boxes, &allSamples, &samplesToRender ]( const pcl::PointCloud<PointType>::ConstPtr& ptr ) {
-        boost::mutex::scoped_lock lock( mutex );
+    []( const pcl::PointCloud<PointType>::ConstPtr& ptr ) {
 
-        /* Point Cloud Processing */
-        performTransform(*ptr, *boost::const_pointer_cast<pcl::PointCloud<PointType> >(ptr), 0, 0, 0,  M_PI / 2, 0, 0);
+            sys_mutex.lock();
+            /* Point Cloud Processing */
+            performTransform(*ptr, *boost::const_pointer_cast<pcl::PointCloud<PointType> >(ptr), 0, 0, 0,  M_PI / 2, 0, 0);
 
-        pcl::transformPointCloud(*ptr, *boost::const_pointer_cast<pcl::PointCloud<PointType> >(ptr), left_rigid_body_transformation);
+            pcl::transformPointCloud(*ptr, *boost::const_pointer_cast<pcl::PointCloud<PointType> >(ptr), left_rigid_body_transformation);
 
-        std::vector<PointType> tmpPoints;
-        bool RenderBoxes = true;
-        visiblePoints.clear();
-        samplesToRender.clear();
-
-        if(RenderBoxes)
-        {
-            TrimPoints(ptr, frame, left_projection_matrix, tmpPoints, min_point, max_point);
-            FilterBoundingBox(tmpPoints, left_projection_matrix, boxes, visiblePoints, -1.0, allSamples, samplesToRender);
-        }
-        else
-        {
-            TrimPoints(ptr, frame, left_projection_matrix, visiblePoints, min_point, max_point);
-        }
-
-        cloud = ptr;
+            cloud = ptr;
+            sys_mutex.unlock();
     };
-    handler->setInputCloud(cloud);
+
 
     // VLP Grabber
     boost::shared_ptr<pcl::VLPGrabber> grabber;
@@ -245,7 +307,6 @@ int main( int argc, char *argv[] )
     // Initialize Python script controllers
     std::cout << "Initializing python" << std::endl;
     Py_Initialize();
-    PythonCodeController* pcc;
     try
     {
         pcc = new PythonCodeController();
@@ -262,67 +323,22 @@ int main( int argc, char *argv[] )
     // Start Grabber
     grabber->start();
 
-
-    cv::Mat image;
-
+    std::thread th = std::thread(&Function /*, this*/);
 
     // The loop where the magic happens
     while( 1 )
     {
-        // Update Viewer
-//        viewer->spinOnce();
-
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
-        boost::mutex::scoped_try_lock lock( mutex );
-        if( lock.owns_lock())
+        if (((cv::waitKey(1) & 0xFF) == 113))
         {
-            if (cloud)
-            {
-//                xformedCloud = cloud;
-
-                pcc->spinOnCamera1();
-                image = pcc->imageFromLastSpin();
-                boxes = pcc->boxesFromLastSpin();
-
-                frame = cv::Rect(0, 0, image.cols, image.rows);
-
-                project(left_projection_matrix, frame, image, visiblePoints, min_point, max_point);
-                
-                std::cout << "___Object Velocities (m/s)___" << std::endl;
-                for (Sample &sample : samplesToRender)
-                {
-                    std::cout << std::to_string(sample.velocity) << std::endl;
-                    cv::putText(image, std::to_string(sample.velocity) + " m/s", sample.boundingBox.br(), cv::FONT_HERSHEY_PLAIN, 1,  Scalar(0,0,255,255), 2);
-                }
-
-                cv::namedWindow("Display window 1", cv::WINDOW_AUTOSIZE);
-                cv::imshow("Display window 1", image);
-                
-                
-                for (Sample &sample : allSamples)
-                {
-                    sample.framesSinceLastSeen += 1;
-                }
-                
-                allSamples.erase(std::remove_if(allSamples.begin(), allSamples.end(), [](const Sample & sample) { return sample.framesSinceLastSeen > 10;}), allSamples.end());
-
-//                performTransform(*boost::const_pointer_cast<pcl::PointCloud<PointType> >(xformedCloud), *boost::const_pointer_cast<pcl::PointCloud<PointType> >(xformedCloud), 0, 0, 0,  -M_PI / 2, 0, 0);
-
-                handler->setInputCloud( cloud );
-//                if( !viewer->updatePointCloud( xformedCloud, *handler, "cloud" ) )
-//                {
-//                    viewer->addPointCloud(xformedCloud, *handler, "cloud" );
-//                }
-            }
-
-            if (((cv::waitKey(1) & 0xFF) == 113))
-            {
-                cv::destroyAllWindows();
-                break;
-            }
+            cv::destroyAllWindows();
+            break;
         }
     }
+
+      running = false;
+      th.join();
 
     // Stop Python script controller
     pcc->terminate();
