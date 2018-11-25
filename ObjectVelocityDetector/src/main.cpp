@@ -52,10 +52,10 @@ bool running = true;
 void InitXForms()
 {
     left_rigid_body_transformation <<
-                                   1.0f,       -0.0f,          -0.0f,      0.31337f,
-                                               0.0f,       1.0f,           0.0,        -0.0f,
-                                               0.0f,       -0.0,           1.0f,       -0.0f,
-                                               0,          0,              0,          1.0f;
+                                    1.0f,       -0.0f,          -0.0f,      0.31337f,
+                                    0.0f,       1.0f,           0.0,        -0.0f,
+                                    0.0f,       -0.0,           1.0f,       -0.0f,
+                                    0,          0,              0,          1.0f;
 
     /// adjusting to the 1280x720 view
     float left_raw_projection[12] = {1182.129700f,  0.0,            750.634114f,    0.0,
@@ -122,6 +122,9 @@ void processingFunction()
     std::vector<Sample> samplesToRender;
 
     PyGILState_STATE gstate = PyGILState_Ensure();
+
+    std::chrono::steady_clock::time_point last = std::chrono::steady_clock::now();
+
     while(running)
     {
         try
@@ -165,9 +168,11 @@ void processingFunction()
                 for (Sample &sample : samplesToRender)
                 {
                     std::cout << "Object: " << i++ << "\n";
-                    std::cout << "\tCount: " << std::to_string(sample.pointsInside) << "\n";
-                    std::cout << "\tRunning: " << std::to_string(sample.runningDistance) << "\n";
-                    std::cout << "\tStd_Dev: " << std::to_string(sample.std_dev) << "\n";
+//                    std::cout << "\tCount: " << std::to_string(sample.pointsInside) << "\n";
+//                    std::cout << "\tRunning: " << std::to_string(sample.runningDistance) << "\n";
+//                    std::cout << "\tStd_Dev: " << std::to_string(sample.std_dev) << "\n";
+//                    std::cout << "\tTimePoint: " << std::chrono::duration_cast<std::chrono::microseconds>(sample.timepoint -  last).count() << "\n";
+                    last = sample.timepoint;
                     std::cout << "\t" << std::to_string(sample.velocity) << std::endl;
                     cv::putText(image, std::to_string(sample.velocity) + " m/s", sample.boundingBox.br(), cv::FONT_HERSHEY_PLAIN, 1,  Scalar(0,0,255,255), 2);
                 }

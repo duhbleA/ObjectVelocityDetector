@@ -31,12 +31,14 @@ struct Sample
 {
     int id;
     cv::Rect boundingBox;
+    PointType location;
     float objectDistance;
     float runningDistance = 0.0f;
     float sq_sum = 0.0f;
     float std_dev;
     int pointsInside;
     int64_t sampleTime;
+    std::chrono::steady_clock::time_point timepoint;
     double velocity;
     bool isVisible;
     int framesSinceLastSeen;
@@ -194,7 +196,9 @@ void FilterBoundingBox(const std::vector<PointType> &visiblePoints, const cv::Ma
                 Boxed_Points bound(i);
                 boundingBoxSample.id = i;
                 boundingBoxSample.boundingBox = bound_box_rect;
-                boundingBoxSample.sampleTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+                boundingBoxSample.timepoint = std::chrono::steady_clock::now();
+//                boundingBoxSample.sampleTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+                boundingBoxSample.location = PointType();
                 boundingBoxSample.objectDistance = 0.0f;
                 boundingBoxSample.pointsInside = 0;
                 boundingBoxSample.velocity = 0.0;
@@ -211,11 +215,11 @@ void FilterBoundingBox(const std::vector<PointType> &visiblePoints, const cv::Ma
                     }
                     if(xy.inside(center_box))
                     {
-                        float distance = GetXYZDistance(point);
+                        // float distance = GetXYZDistance(point);
                         bound.points.push_back(point);
-                        boundingBoxSample.pointsInside += 1;
-                        boundingBoxSample.runningDistance += distance;
-                        boundingBoxSample.sq_sum += (distance * distance);
+                        // boundingBoxSample.pointsInside += 1;
+                        // boundingBoxSample.runningDistance += distance;
+                        // boundingBoxSample.sq_sum += (distance * distance);
                     }
                 }
                 workingSamples.push_back(boundingBoxSample);
@@ -228,45 +232,66 @@ void FilterBoundingBox(const std::vector<PointType> &visiblePoints, const cv::Ma
     std::vector<Sample> visibleSamples;
     for (Sample &newSample : workingSamples)
     {
-        float tmpDistance/*newSample.objectDistance*/ = newSample.runningDistance / (float) newSample.pointsInside;
-        float variance = (newSample.sq_sum / (float)(newSample.pointsInside)) - (tmpDistance * tmpDistance);   ///std_deviation
-        newSample.std_dev = variance;
 
-        float newDistance = 0.0f;
+//        float tmpDistance/*newSample.objectDistance*/ = newSample.runningDistance / (float) newSample.pointsInside;
+//        float variance = (newSample.sq_sum / (float)(newSample.pointsInside)) - (tmpDistance * tmpDistance);   ///std_deviation
+//        newSample.std_dev = variance;
+
+//        float newDistance = 0.0f;
 
 
 
         for(Boxed_Points & boxed : boundPoints)
         {
+            /// calculate the average xyz point for our minibox.
+
             if(boxed.id == newSample.id)
             {
-                float min = 0.0f, max = 0.0f;
-
-                std::for_each(boxed.points.begin(), boxed.points.end(), [&min, &max] (const PointType &point)
+                float x = 0.0f;
+                float y = 0.0f;
+                float z = 0.0f;
+                for(PointType &p : boxed.points)
                 {
-                    float d = GetXYZDistance(point);
-                    if(min > d)
-                        min = d;
-                    if(max < d)
-                        max = d;
-                });
-                float tmp = (min + max) / 2;
+                    x += p._PointXYZI::x;
+                    y += p._PointXYZI::y;
+                    z += p._PointXYZI::z;
+                }
+                newSample.location._PointXYZI::x = x / boxed.points.size();
+                newSample.location._PointXYZI::y = y / boxed.points.size();
+                newSample.location._PointXYZI::z = z / boxed.points.size();
 
-                float df = 0.0f;
-                int count = 0;
-                std::for_each(boxed.points.begin(), boxed.points.end(), [&df, &count, tmp](const PointType &point)
-                {
-                    float d = GetXYZDistance(point);
-                    if(d < tmp)
-                    {
-                        df += d;
-                        count ++;
-                    }
-                });
-
-//                newSample.objectDistance = newDistance / boxed.points.size();
-                newSample.objectDistance = df / count;
             }
+
+
+//            if(boxed.id == newSample.id)
+//            {
+//                float min = 0.0f, max = 0.0f;
+
+//                std::for_each(boxed.points.begin(), boxed.points.end(), [&min, &max] (const PointType &point)
+//                {
+//                    float d = GetXYZDistance(point);
+//                    if(min > d)
+//                        min = d;
+//                    if(max < d)
+//                        max = d;
+//                });
+//                float tmp = (min + max) / 2;
+
+//                float df = 0.0f;
+//                int count = 0;
+//                std::for_each(boxed.points.begin(), boxed.points.end(), [&df, &count, tmp](const PointType &point)
+//                {
+//                    float d = GetXYZDistance(point);
+//                    if(d < tmp)
+//                    {
+//                        df += d;
+//                        count ++;
+//                    }
+//                });
+
+////                newSample.objectDistance = newDistance / boxed.points.size();
+//                newSample.objectDistance = df / count;
+//            }
         }
 
 
@@ -281,7 +306,14 @@ void FilterBoundingBox(const std::vector<PointType> &visiblePoints, const cv::Ma
             {
                 if ((newSample.boundingBox & oldSample.boundingBox).area() > 0)
                 {
-                    newSample.velocity = (double) (newSample.objectDistance - oldSample.objectDistance) / (double) ((newSample.sampleTime - oldSample.sampleTime) / 1000.0);
+                    auto dist = GetXYZDistance(oldSample.location, newSample.location) ;
+//                    std::cout << "THREAD DISTANCE: " <<  dist << std::endl;
+//                    std::cout << "\tPointA: (" << oldSample.location._PointXYZI::x << ", " << oldSample.location._PointXYZI::y << ", " << oldSample.location._PointXYZI::z << ") \n";
+//                    std::cout << "\tPointB: (" << newSample.location._PointXYZI::x << ", " << newSample.location._PointXYZI::y << ", " << newSample.location._PointXYZI::z << ") \n";
+
+                    newSample.velocity = /*(double)*/ dist /
+                            /*(double) */(std::chrono::duration_cast<std::chrono::milliseconds>(newSample.timepoint - oldSample.timepoint).count() / 1000.0);
+//                    newSample.velocity = (double) (newSample.objectDistance - oldSample.objectDistance) / (double) ((newSample.sampleTime - oldSample.sampleTime) / 1000.0);
                     indexToReplace = i;
                     newSample.isVisible = true;
                     break;
@@ -353,7 +385,7 @@ pcl::PointCloud<pcl::PointXYZ>* toPointsXYZ(pcl::PointCloud<PointType>& point_cl
 void performTransform(const pcl::PointCloud<PointType>& point_cloud, pcl::PointCloud<PointType>& point_cloud_out, float x, float y, float z, float rottyx, float rottyy, float rottyz)
 {
     Eigen::Affine3f transf = pcl::getTransformation(x, y, z, rottyx, rottyy, rottyz);
-    pcl::PointCloud<PointType> new_cloud;
+//    pcl::PointCloud<PointType> new_cloud;
     pcl::transformPointCloud(point_cloud, point_cloud_out, transf);
 }
 
