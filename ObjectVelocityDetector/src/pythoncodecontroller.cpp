@@ -74,12 +74,18 @@ void PythonCodeController::terminate()
 
 cv::Mat PythonCodeController::imageFromLastSpin()
 {
-    return cvt.toMat(raw_image);
+    auto mat = cvt.toMat(raw_image);
+    /// deref your python pointers!!!!
+    Py_XDECREF(raw_image);
+    return mat;
 }
 
 cv::Mat PythonCodeController::boxesFromLastSpin()
 {
-    return cvt.toMat(bounding_boxes);
+    auto mat = cvt.toMat(bounding_boxes);
+    /// deref your python pointers!!!!
+    Py_XDECREF(bounding_boxes);
+    return mat;
 }
 
 void PythonCodeController::spinOnCamera1()
